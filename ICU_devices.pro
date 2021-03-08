@@ -17,6 +17,7 @@ SOURCES += \
 
 HEADERS += \
     bbraun.h \
+    bbraun_const.h \
     datex.h \
     device.h \
     evita4_vent.h \

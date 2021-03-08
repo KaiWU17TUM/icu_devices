@@ -208,9 +208,17 @@ struct svo2_group
 #pragma pack(1)
 struct basic_phdb{
     struct ecg_group ecg;
-    struct p_group p1234[4];
+    struct p_group p1;
+    struct p_group p2;
+    struct p_group p3;
+    struct p_group p4;
+
     struct nibp_group nibp;
-    struct t_group t[4];
+    struct t_group t1;
+    struct t_group t2;
+    struct t_group t3;
+    struct t_group t4;
+
     struct SpO2_pl_group SpO2;
     struct co2_group co2;
     struct o2_group o2;
@@ -221,7 +229,8 @@ struct basic_phdb{
     struct nmt_group nmt;
     struct ecg_extra_group ecg_extra;
     struct svo2_group svo2_group;
-    struct p_group p56[2];
+    struct p_group p5;
+    struct p_group p6;
 
     byte reserved[2];
 };

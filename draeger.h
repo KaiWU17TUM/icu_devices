@@ -1,7 +1,7 @@
 #ifndef DRAEGER_H
 #define DRAEGER_H
 
-#endif // DRAEGER_H
+
 #include <vector>
 #include <map>
 
@@ -129,3 +129,80 @@ const std::map<byte, std::string> MeasurementCP1{
     stringpair_t(0xFF,"InspCO2kPa"),//kPa*/
 
 };
+const std::map<byte, std::string> MeasurementCP2{
+    stringpair_t(0x00, "VTspon"),  //mL
+    stringpair_t(0x06, "ElastanceE"),  //mbarPerL
+    stringpair_t(0x07, "Tau"),  //sec
+    stringpair_t(0x21, "ExpiratoryTidalVolumeVTe"),  //mL
+    stringpair_t(0x22, "InspiratoryTidalVolumeVTi"),  //mL
+    stringpair_t(0x23, "EIP"),  //mbar
+    stringpair_t(0x7D, "Tlowmax"),  //sec
+    stringpair_t(0x7B, "PressureVariability"),  //pct
+};
+const std::map<byte, std::string> DeviceSettings
+{
+    stringpair_t(0x01, "Oxygen"),  //pct
+    stringpair_t(0x02, "MaxInpirationFlow"),  //LPerMin
+    stringpair_t(0x04, "InspTidalVolume"),  //L
+    stringpair_t(0x05, "InspiratoryTime"),  //sec
+    stringpair_t(0x07, "IPart"),  //None
+    stringpair_t(0x08, "EPart"),  //None
+    stringpair_t(0x09, "FrequencyIMV"),  //OnePerMin
+    stringpair_t(0x0A, "FrequencyIPPV"),  //OnePerMin
+    stringpair_t(0x0B, "PEEP"),  //mbar
+    stringpair_t(0x0C, "IntermittentPEEP"),  //mbar
+    stringpair_t(0x0D, "BIPAPLowPressure"),  //mbar
+    stringpair_t(0x0E, "BIPAPHighPressure"),  //mbar
+    stringpair_t(0x0F, "BIPAPLowTime"),  //sec
+    stringpair_t(0x10, "BIPAPHighTime"),  //sec
+    stringpair_t(0x11, "ApneaTime"),  //sec
+    stringpair_t(0x12, "PressureSupportPressure"),  //mbar
+    stringpair_t(0x13, "MaxInspirationAirwayPressure"),  //mbar
+    stringpair_t(0x15, "TriggerPressure"),  //mbar
+    stringpair_t(0x16, "TachyapneaFrequency"),  //OnePerMin
+    stringpair_t(0x17, "TachyapneaDuration"),  //sec
+    stringpair_t(0x27, "InspPause_InspTime"),  //pct
+    stringpair_t(0x29, "FlowTrigger"),  //LPerMin
+    stringpair_t(0x2E, "ASBRamp"),  //sec
+    stringpair_t(0x2F, "FreshgasFlow"),  //mLPerMin
+    stringpair_t(0x40, "VT"),  //mL
+    stringpair_t(0x42, "MinimalFrequency"),  //OnePerMin
+    stringpair_t(0x44, "BackupTidalVolume"),  //L
+    stringpair_t(0x45, "InspiratoryPressure"),  //mbar
+    stringpair_t(0x4A, "Age"),  //yr
+    stringpair_t(0x4B, "Weight"),  //kg
+    stringpair_t(0x4C, "InspiratoryFlow"),  //L/sec
+    stringpair_t(0x4E, "Tdisconnect"),  //sec
+    stringpair_t(0x4F, "FlowAcceleration"),  //mbar/sec
+};
+const std::map<byte, std::string> TextMessages{
+    stringpair_t(0x01, "VentModeIPPV"),
+    stringpair_t(0x02, "VentModeIPPVAssist"),
+    stringpair_t(0x04, "VentModeCPPV"),
+    stringpair_t(0x05, "VentModeCPPVAssist"),
+    stringpair_t(0x06, "VentModeSIMV"),
+    stringpair_t(0x07, "VentModeSIMVASB"),
+    stringpair_t(0x08, "SB"),
+    stringpair_t(0x09, "ASB"),
+    stringpair_t(0x0A, "CPAP"),
+    stringpair_t(0x0B, "CPAP_ASB"),
+    stringpair_t(0x0C, "MMV"),
+    stringpair_t(0x0D, "MMV_ASB"),
+    stringpair_t(0x0E, "BIPAP"),
+    stringpair_t(0x0F, "SYNCHRON_MASTER"),
+    stringpair_t(0x10, "SYNCHRON_SLAVE"),
+    stringpair_t(0x11, "APNEA_VENTILATION"),
+    stringpair_t(0x12, "DS"),
+    stringpair_t(0x18, "BIPAP_SMV"),
+    stringpair_t(0x19, "BIPAP_SMV_ASB"),
+    stringpair_t(0x1A, "BIPAP_APRV"),
+    stringpair_t(0x1E, "VentStandby"),
+    stringpair_t(0x20, "Adults"),
+    stringpair_t(0x21, "Neonates"),
+    stringpair_t(0x22, "CO2InmmHg"),
+    stringpair_t(0x23, "CO2InkPa"),
+    stringpair_t(0x24, "CO2InPercent"),
+    stringpair_t(0x25, "AnesGasHalothane"),
+
+};
+#endif // DRAEGER_H

@@ -5,16 +5,16 @@
 #include <vector>
 #include <QDebug>
 #include <QFile>
-
+#include <iostream>
+#include <math.h>
 
 class GE_Monitor: public Device
 {
 Q_OBJECT
 public:
     GE_Monitor();
-    void prepare_phdb_request();
-    void create_frame_list_from_byte(byte b);
-    void create_record_list();
+    void start();
+
     ~GE_Monitor(){};
 
 private:
@@ -32,7 +32,9 @@ private:
     std::vector<std::vector<unsigned char>>frame_buffer;
     std::vector<unsigned char>b_list;
 
-
+    void prepare_phdb_request();
+    void create_frame_list_from_byte(byte b);
+    void read_packet_from_frame();
     void tx_buffer(byte* payload, int length);
     void validate_add_data(QString physio_id, short value, double decimalshift, bool rounddata);
     void save_basic_sub_record(datex::dri_phdb driSR);
@@ -40,6 +42,7 @@ private:
     void write_to_file_header();
     //void create_frame_list_from_byte(byte b);
     //void create_record_list();
+    void save_ext1_and_ext2_record(datex::dri_phdb driSR);
     Q_DISABLE_COPY(GE_Monitor);
 
 

@@ -1,0 +1,2 @@
+Time,RelativeTime,Address,Operation condition of a pump,Name of the pump model,Rate,Average rate between two requests,Medication long name,Volume infused,Infusion time,Battery time,Rest of standby time,Actual pressure in % of the maximum pressure,Unique identifier,Serial number of device,Power supply,Standby expire in two minutes,Standby over,KVO end,
+Mon Mar  8 11:56:31 2021,8492,50113,00051,686N030004,0.00,0.00,_NV,0.00,0,979,0,0,68088FFF,561151,1,0,0,0,
