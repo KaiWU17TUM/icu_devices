@@ -2,7 +2,7 @@
 
 Evita4_vent::Evita4_vent(){
     local_serial_port = new MySerialPort();
-    local_serial_port->serial->setPortName("/dev/ttyUSB0");
+    local_serial_port->serial->setPortName("/dev/ttyUSB5");
     local_serial_port->serial->setBaudRate(QSerialPort::Baud19200);
     local_serial_port->serial->setDataBits(QSerialPort::Data8);
     local_serial_port->serial->setParity(QSerialPort::EvenParity);
@@ -342,7 +342,7 @@ void Evita4_vent::save_num_val_list_rows(std::string datatype){
         QFile myfile(QString::fromStdString(filename));
         if (myfile.open(QIODevice::Append)) {
             myfile.write((char*)&row[0], row.length());
-            myfile.write((char*)&row[0], row.length());
+
         }
         qDebug()<<"write data to file";
     }

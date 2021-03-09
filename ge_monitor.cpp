@@ -3,12 +3,12 @@
 GE_Monitor::GE_Monitor()
 {
     local_serial_port = new MySerialPort();
-    local_serial_port->serial->setPortName("/dev/ttyACM0");
-    local_serial_port->serial->setBaudRate(QSerialPort::Baud115200);
+    local_serial_port->serial->setPortName("/dev/ttyUSB2");
+    local_serial_port->serial->setBaudRate(QSerialPort::Baud19200);
     local_serial_port->serial->setDataBits(QSerialPort::Data8);
-    local_serial_port->serial->setParity(QSerialPort::NoParity);
+    local_serial_port->serial->setParity(QSerialPort::EvenParity);
     local_serial_port->serial->setStopBits(QSerialPort::OneStop);
-    local_serial_port->serial->setFlowControl(QSerialPort::NoFlowControl);
+    local_serial_port->serial->setFlowControl(QSerialPort::HardwareControl);
     QObject::connect(local_serial_port->serial, SIGNAL(readyRead()), this, SLOT(process_buffer()));
 
 }
@@ -19,8 +19,12 @@ void GE_Monitor::start(){
         std::cout<<"Try to open the serial port for GE Monitor"<<std::endl;
         try_to_open_port();
 
+        std::cout<<"Reset transfer";
+        request_wave_stop();
+
         std::cout<<"Try to get data from GE Monitor"<<std::endl;
-        prepare_phdb_request();
+        request_phdb_transfer();
+        request_wave_transfer();
 
 
     }  catch (const std::exception& e) {
@@ -30,8 +34,8 @@ void GE_Monitor::start(){
 
 }
 
-void GE_Monitor::prepare_phdb_request(){
-    struct datex::datex_record_req requestPkt;
+void GE_Monitor::request_phdb_transfer(){
+    struct datex::datex_record_phdb_req requestPkt;
     struct datex::dri_phdb_req *pRequest;
 
     //Clear the pkt
@@ -58,10 +62,10 @@ void GE_Monitor::prepare_phdb_request(){
     //return payload
     tx_buffer(payload,length);
 }
-/*
+
 void GE_Monitor::request_wave_transfer(){
-    struct datex::datex_record_req requestPkt;
-    struct datex::dri_phdb_req *pRequest;
+    struct datex::datex_record_wave_req requestPkt;
+    struct datex::dri_wave_req *pRequest;
 
     //Clear the pkt
     memset(&requestPkt,0x00,sizeof(requestPkt));
@@ -77,15 +81,47 @@ void GE_Monitor::request_wave_transfer(){
     requestPkt.hdr.sr_desc[1].sr_type = (short) DRI_EOL_SUBR_LIST;
 
     //Fill the request
-    pRequest = (struct datex::dri_wave_req*)&(requestPkt.phdbr);
-    pRequest-> = DRI_PH_DISPL;
+    pRequest = (struct datex::dri_wave_req*)&(requestPkt.wfreq);
+    pRequest->req_type = WF_REQ_CONT_START;
+    pRequest->type[0] = DRI_WF_ECG1;
+    pRequest->type[1] = DRI_EOL_SUBR_LIST;
 
     byte* payload = (byte*)&requestPkt;
     int length = sizeof(requestPkt);
     //return payload
     tx_buffer(payload,length);
 
-}*/
+}
+
+void GE_Monitor::request_wave_stop(){
+    struct datex::datex_record_wave_req requestPkt;
+    struct datex::dri_wave_req *pRequest;
+
+    //Clear the pkt
+    memset(&requestPkt,0x00,sizeof(requestPkt));
+
+    //Fill the header
+    requestPkt.hdr.r_len = sizeof(struct datex::datex_hdr)+sizeof(struct datex::dri_wave_req);
+    requestPkt.hdr.r_maintype = DRI_MT_WAVE;
+    requestPkt.hdr.dri_level =  0;
+
+    //The pkt contains one subrecord
+    requestPkt.hdr.sr_desc[0].sr_type = 0;
+    requestPkt.hdr.sr_desc[0].sr_offset = (byte)0;
+    requestPkt.hdr.sr_desc[1].sr_type = (short) DRI_EOL_SUBR_LIST;
+
+    //Fill the request
+    pRequest = (struct datex::dri_wave_req*)&(requestPkt.wfreq);
+    pRequest->req_type = WF_REQ_CONT_STOP;
+    pRequest->type[0] = DRI_EOL_SUBR_LIST;
+
+    byte* payload = (byte*)&requestPkt;
+    int length = sizeof(requestPkt);
+    //return payload
+    tx_buffer(payload,length);
+
+}
+
 
 
 void GE_Monitor::tx_buffer(byte* payload, int length){
@@ -249,15 +285,15 @@ void GE_Monitor::read_packet_from_frame(){
                 }
                 save_basic_sub_record(phdata_ptr);
                 save_ext1_and_ext2_record(phdata_ptr);
-                write_to_rows();
             }
+            write_to_rows();
         }
 
         // this is a WAVE record
         else if(record.hdr.r_maintype == DRI_MT_WAVE){
-            uint unixtime = record.hdr.r_time;
-            struct datex::dri_phdb phdata_ptr;
+             uint unixtime = record.hdr.r_time;
 
+            // for each subrecord
             for(int j=0;j<8&&record.hdr.sr_desc[j].sr_type!=0xFF;j++){
                 int offset = (int)record.hdr.sr_desc[j].sr_offset;
                 int nextoffset = 0;
@@ -265,21 +301,88 @@ void GE_Monitor::read_packet_from_frame(){
                 srsamplelenbytes[0] = record.rcrd.data[offset];
                 srsamplelenbytes[1] = record.rcrd.data[offset+1];
                 int srheaderlen = 6;
-                int subrecordlen = 16*(int)srsamplelenbytes[1]+(int)srsamplelenbytes[0]+srheaderlen;
-                nextoffset = offset + subrecordlen;
+                int subrecordlen = 256*(int)srsamplelenbytes[1]+(int)srsamplelenbytes[0]+srheaderlen;
+                nextoffset = offset + 2*subrecordlen;
                 int buflen = (nextoffset - offset - 6);
                 byte * buffer = (byte *)malloc(sizeof(byte)*buflen);
                 for (int j = 0; j < buflen; j++)
                 {
                     buffer[j] = record.rcrd.data[6 + j + offset];
                 }
+                std::vector<short> waveValList;
+                for(int n = 0; n < buflen; n += 2){
+                    waveValList.push_back((buffer[n+1])*256+(buffer[n]));
+                }
 
+                WaveValResult wave_val;
+                wave_val.Timestamp = unixtime;
+                //wave_val.DeviceID = m_DeviceID;
+                std::string physioId = datex::WaveIdLabels.find(record.hdr.sr_desc[j].sr_type)->second;
+                wave_val.PhysioID = physioId;
+                wave_val.Unitshift = get_wave_unit_shift(wave_val.PhysioID);
+                wave_val.Value = waveValList;
+                m_WaveValList.push_back(wave_val);
             }
 
         }
+        save_wave_to_csv();
 
     }
 }
+
+double GE_Monitor::get_wave_unit_shift(std::string physioId){
+    double decimalshift = 1;
+    if(physioId.find("ECG")!=std::string::npos)
+        return(decimalshift = 0.01);
+    else if(physioId.find("INVP")!=std::string::npos)
+        return(decimalshift = 0.01);
+    else if(physioId.find("PLETH")!=std::string::npos)
+        return(decimalshift = 0.01);
+    else if(physioId.find("CO2")!=std::string::npos)
+        return(decimalshift = 0.01);
+    else if(physioId.find("O2")!=std::string::npos)
+        return(decimalshift = 0.01);
+    else if(physioId.find("RESP")!=std::string::npos)
+        return(decimalshift = 0.01);
+    else if(physioId.find("AA")!=std::string::npos)
+        return(decimalshift = 0.01);
+    else if(physioId.find("FLOW")!=std::string::npos)
+        return(decimalshift = 0.01);
+    else if(physioId.find("AWP")!=std::string::npos)
+        return(decimalshift = 0.1);
+    else if(physioId.find("VOL")!=std::string::npos)
+        return(decimalshift = -1);
+    else if(physioId.find("EEG")!=std::string::npos)
+        return(decimalshift = 0.1);
+    else
+        return decimalshift;
+
+}
+
+void GE_Monitor::save_wave_to_csv(){
+    for(int i=0; i<m_WaveValList.size(); i++){
+        std::string filename =  pathcsv+m_WaveValList[i].PhysioID+"DataExport.csv";
+        double decimalshift = m_WaveValList[i].Unitshift;
+        std::string row;
+        for(int j=0;j<m_WaveValList[i].Value.size();j++){
+            short value = m_WaveValList[i].Value[j];
+            std::string wave_val = validate_wave_data(value, decimalshift, false);
+            row.append( m_WaveValList[i].Timestamp);
+            row.append(",");
+            row.append(wave_val);
+            row.append(",\n");
+        }
+
+        QFile myfile(QString::fromStdString(filename));
+        if (myfile.open(QIODevice::Append)) {
+            myfile.write((char*)&row[0], row.length());
+            qDebug()<<"write to wave file";
+        }
+    }
+    m_WaveValList.clear();
+}
+
+
 
 void GE_Monitor::save_basic_sub_record(datex::dri_phdb driSR){
     short so1 = driSR.physdata.basic.ecg.hr;
@@ -386,17 +489,25 @@ void GE_Monitor::save_ext1_and_ext2_record(datex::dri_phdb driSR){
     validate_add_data("BIS_SQI", so10, 1, true);
 }
 
+std::string GE_Monitor::validate_wave_data(short value, double decimalshift, bool rounddata){
+    double d_val = (double)(value)*decimalshift;
+    if(rounddata)
+        d_val = round(d_val);
+    std::string str = std::to_string(d_val);
+    if(value< DATA_INVALID_LIMIT)
+        str = '-';
+    return str;
+}
 
-void GE_Monitor::validate_add_data(QString physio_id, short value, double decimalshift, bool rounddata)
+void GE_Monitor::validate_add_data(std::string physio_id, short value, double decimalshift, bool rounddata)
 {
-    int val = (int)(value);
-    double dval = (double)(val)*decimalshift;
+    double dval = (double)(value)*decimalshift;
     if (rounddata) dval = round(dval);
 
-    QString valuestr = QString::number(dval);;
+    std::string valuestr =std::to_string(dval);;
 
 
-    if (val < DATA_INVALID_LIMIT)
+    if (value < DATA_INVALID_LIMIT)
     {
         valuestr = "-";
     }
@@ -417,20 +528,20 @@ void GE_Monitor::write_to_rows(){
     if (m_NumericValList.size() != 0)
     {
         write_to_file_header();
-        QString row;
-        row.append('\n');
+        std::string row;
+        row.append("\n");
         row.append(m_NumericValList[0].Timestamp);
-        row.append(',');
+        row.append(",");
 
         for(int i=0;i<m_NumericValList.size();i++){
             row.append(m_NumericValList[i].Value);
             row.append(",");
         }
 
-        QFile myfile(pathcsv);
+        QFile myfile(QString::fromStdString(pathcsv+"AS3DataExport.csv"));
         if (myfile.open(QIODevice::Append)) {
-            QTextStream out(&myfile);
-            out << row.toUtf8();
+            myfile.write((char*)&row[0], row.length());
+            qDebug()<<"write to phdb";
         }
         m_NumericValList.clear();
     }
@@ -441,7 +552,7 @@ void GE_Monitor::write_to_file_header()
 {
     if (m_NumericValList.size() != 0 && m_transmissionstart)
     {
-        QString headers;
+        std::string headers;
         headers.append("Time");
         headers.append(",");
 
@@ -451,10 +562,9 @@ void GE_Monitor::write_to_file_header()
             headers.append(",");
         }
 
-        QFile myfile(pathcsv);
+        QFile myfile(QString::fromStdString(pathcsv+"AS3DataExport.csv"));
         if (myfile.open(QIODevice::WriteOnly)) {
-            QTextStream out(&myfile);
-            out << headers.toUtf8();
+            myfile.write((char*)&headers[0], headers.length());
         }
         m_transmissionstart = false;
         m_NumValHeaders.clear();

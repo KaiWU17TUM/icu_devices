@@ -2,6 +2,7 @@
 #define DATEX_H
 
 
+#include <map>
 
 #define DATA_INVALID_LIMIT -32001
 
@@ -58,6 +59,40 @@ struct datex_hdr{
 #define DATA_UNDER_RANGE -32764
 #define DATA_OVER_RANGE -32763
 #define DATA_NOT_CALIBRATED -32762
+
+/**
+ * @brief WavesIDLabels
+ */
+typedef std::pair<byte, std::string> stringpair_t;
+const std::map<byte, std::string> WaveIdLabels{
+     stringpair_t(0, "DRI_WF_CMD"),
+     stringpair_t(1, "DRI_WF_ECG1"),
+     stringpair_t(2, "DRI_WF_ECG2"),
+     stringpair_t(3, "DRI_WF_ECG3"),
+     stringpair_t(4, "DRI_WF_INVP1"),
+     stringpair_t(5, "DRI_WF_INVP2"),
+     stringpair_t(6, "DRI_WF_INVP3"),
+     stringpair_t(7, "DRI_WF_INVP4"),
+     stringpair_t(8, "DRI_WF_PLETH"),
+     stringpair_t(9, "DRI_WF_CO2"),
+     stringpair_t(10, "DRI_WF_O2"),
+     stringpair_t(11, "DRI_WF_N2O"),
+     stringpair_t(12, "DRI_WF_AA"),
+     stringpair_t(13, "DRI_WF_AWP"),
+     stringpair_t(14, "DRI_WF_FLOW"),
+     stringpair_t(15, "DRI_WF_RESP"),
+     stringpair_t(16, "DRI_WF_INVP5"),
+     stringpair_t(17, "DRI_WF_INVP6"),
+     stringpair_t(18, "DRI_WF_EEG1"),
+     stringpair_t(19, "DRI_WF_EEG2"),
+     stringpair_t(20, "DRI_WF_EEG3"),
+     stringpair_t(21, "DRI_WF_EEG4"),
+     stringpair_t(23, "DRI_WF_VOL"),
+     stringpair_t(24, "DRI_WF_TONO_PRESS"),
+     stringpair_t(29, "DRI_WF_SPI_LOOP_STATUS"),
+     stringpair_t(32, "DRI_WF_ENT_100"),
+     stringpair_t(35, "DRI_WF_EEG_BIS"),
+};
 
 struct phdb_status_bits{
     unsigned int exists :1;
@@ -533,7 +568,7 @@ struct datex_record{
     }rcrd;
 };
 
-struct datex_record_req{
+struct datex_record_phdb_req{
     struct datex_hdr hdr;
     struct dri_phdb_req phdbr;
 };

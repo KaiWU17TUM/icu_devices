@@ -22,27 +22,31 @@ private:
     bool m_storestart = false;
     bool m_storeend = false;
     bool m_bitschiftnext = false;
-    QString m_strTimestamp;
-    QString m_DeviceID = "GE_Monitor";
+    std::string m_strTimestamp;
+    std::string m_DeviceID = "GE_Monitor";
     bool m_transmissionstart = true;
-    QString pathcsv = ("/home/wei/Documents/DHM/ICU_devices/AS3DataExport.csv");
+    std::string pathcsv = ("/home/wei/Documents/DHM/ICU_devices/");
     std::vector<struct NumericValResult> m_NumericValList;
-    std::vector<QString> m_NumValHeaders;
+    std::vector<struct WaveValResult> m_WaveValList;
+    std::vector<std::string> m_NumValHeaders;
 
     std::vector<std::vector<unsigned char>>frame_buffer;
     std::vector<unsigned char>b_list;
 
-    void prepare_phdb_request();
+    void request_phdb_transfer();
     void create_frame_list_from_byte(byte b);
     void read_packet_from_frame();
+    void request_wave_transfer();
     void tx_buffer(byte* payload, int length);
-    void validate_add_data(QString physio_id, short value, double decimalshift, bool rounddata);
+    void validate_add_data(std::string physio_id, short value, double decimalshift, bool rounddata);
+    std::string validate_wave_data(short value, double decimalshift, bool rounddata);
     void save_basic_sub_record(datex::dri_phdb driSR);
     void write_to_rows();
     void write_to_file_header();
-    //void create_frame_list_from_byte(byte b);
-    //void create_record_list();
     void save_ext1_and_ext2_record(datex::dri_phdb driSR);
+    double get_wave_unit_shift(std::string physioId);
+    void save_wave_to_csv();
+    void request_wave_stop();
     Q_DISABLE_COPY(GE_Monitor);
 
 
@@ -54,18 +58,18 @@ public slots:
 /*******************/
 struct NumericValResult
 {
-    QString Timestamp;
-    QString PhysioID;
-    QString Value;
-    QString DeviceID;
+    std::string Timestamp;
+    std::string PhysioID;
+    std::string Value;
+    std::string DeviceID;
 };
 
 struct  WaveValResult
 {
-    QString Timestamp;
-    QString PhysioID;
-    short Value;
-    QString DeviceID;
+    std::string Timestamp;
+    std::string PhysioID;
+    std::vector<short> Value;
+    std::string DeviceID;
     double Unitshift;
 };
 
