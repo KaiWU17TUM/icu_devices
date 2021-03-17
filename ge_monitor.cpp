@@ -3,7 +3,7 @@
 GE_Monitor::GE_Monitor()
 {
     local_serial_port = new MySerialPort();
-    local_serial_port->serial->setPortName("/dev/ttyUSB2");
+    local_serial_port->serial->setPortName("/dev/ttyUSB1");
     local_serial_port->serial->setBaudRate(QSerialPort::Baud19200);
     local_serial_port->serial->setDataBits(QSerialPort::Data8);
     local_serial_port->serial->setParity(QSerialPort::EvenParity);
@@ -283,6 +283,12 @@ void GE_Monitor::read_packet_from_frame(){
                         (phdata_ptr.physdata.ext3) = *(struct datex::ext3_phdb*)buffer;
                         break;
                 }
+                std::time_t temp = unixtime;
+                std::tm* t = std::gmtime(&temp);
+                std::stringstream ss;
+                ss << std::put_time(t, "%Y-%m-%d %I:%M:%S %p");
+                m_strTimestamp = ss.str();
+
                 save_basic_sub_record(phdata_ptr);
                 save_ext1_and_ext2_record(phdata_ptr);
             }
@@ -315,7 +321,12 @@ void GE_Monitor::read_packet_from_frame(){
                 }
 
                 WaveValResult wave_val;
-                wave_val.Timestamp = unixtime;
+                std::time_t temp = unixtime;
+                std::tm* t = std::gmtime(&temp);
+                std::stringstream ss;
+                ss << std::put_time(t, "%Y-%m-%d %I:%M:%S %p");
+
+                wave_val.Timestamp = ss.str();
                 //wave_val.DeviceID = m_DeviceID;
                 std::string physioId = datex::WaveIdLabels.find(record.hdr.sr_desc[j].sr_type)->second;
                 wave_val.PhysioID = physioId;

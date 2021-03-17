@@ -7,7 +7,9 @@
 #include <QFile>
 #include <iostream>
 #include <math.h>
-
+#include <ctime>
+#include <sstream>
+#include <iomanip>
 class GE_Monitor: public Device
 {
 Q_OBJECT

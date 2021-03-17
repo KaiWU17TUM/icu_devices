@@ -2,7 +2,7 @@
 
 Evita4_vent::Evita4_vent(){
     local_serial_port = new MySerialPort();
-    local_serial_port->serial->setPortName("/dev/ttyUSB5");
+    local_serial_port->serial->setPortName("/dev/ttyUSB0");
     local_serial_port->serial->setBaudRate(QSerialPort::Baud19200);
     local_serial_port->serial->setDataBits(QSerialPort::Data8);
     local_serial_port->serial->setParity(QSerialPort::EvenParity);
@@ -255,7 +255,7 @@ void Evita4_vent::parse_data_response_measured(std::vector<byte> &packetbuffer, 
 
         for(int i=0;i<responselen;i=i+6){
             std::vector<byte> DataCode(response.begin()+i,response.begin()+2+i);
-            std::string DataValue(response.begin()+3+i,response.begin()+5+i);
+            std::string DataValue(response.begin()+2+i,response.begin()+6+i);
             byte datacode = 0x0;
             if(DataCode[0]<=0x39)
                 datacode+=16*(DataCode[0]-0x30);
