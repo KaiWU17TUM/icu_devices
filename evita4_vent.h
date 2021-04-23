@@ -25,7 +25,7 @@ public:
 
 private:
     QTimer *timer_cp1;
-    std::string pathcsv = ("/home/wei/Documents/DHM/ICU_devices/DrgVentDataExport.csv");
+    std::string pathcsv = ("/home/dhm/workspace/icu_devices/DrgVentDataExport.csv");
     bool m_storestart2 = true;
     bool m_storestart1 = false;
     bool m_storeend = false;

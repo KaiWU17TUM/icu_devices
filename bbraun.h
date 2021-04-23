@@ -24,7 +24,7 @@ private:
     std::map<std::string, std::string> AdditionalParameters;
     QTimer *timer_cp1;
     std::vector<byte> m_bedid;
-    std::string pathcsv = "/home/wei/Documents/DHM/ICU_devices/BCCDataExport.csv";
+    std::string pathcsv = "/home/dhm/workspace/icu_devices/BCCDataExport.csv";
     bool ack_flag = false;
     bool m_fstart = false;
     bool m_storestart = false;

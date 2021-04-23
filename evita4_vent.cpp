@@ -2,7 +2,7 @@
 
 Evita4_vent::Evita4_vent(){
     local_serial_port = new MySerialPort();
-    local_serial_port->serial->setPortName("/dev/ttyUSB0");
+    local_serial_port->serial->setPortName("/dev/ttyUSB1");
     local_serial_port->serial->setBaudRate(QSerialPort::Baud19200);
     local_serial_port->serial->setDataBits(QSerialPort::Data8);
     local_serial_port->serial->setParity(QSerialPort::EvenParity);

@@ -27,7 +27,7 @@ private:
     std::string m_strTimestamp;
     std::string m_DeviceID = "GE_Monitor";
     bool m_transmissionstart = true;
-    std::string pathcsv = ("/home/wei/Documents/DHM/ICU_devices/");
+    std::string pathcsv = ("/home/dhm/workspace/icu_devices/");
     std::vector<struct NumericValResult> m_NumericValList;
     std::vector<struct WaveValResult> m_WaveValList;
     std::vector<std::string> m_NumValHeaders;

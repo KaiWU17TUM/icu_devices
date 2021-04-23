@@ -1,0 +1,16 @@
+#! /bin/bash
+PURPLE='\033[0;35m'
+NC='\033[0m'
+
+echo "${BLUE}STEP 1 : starting necessary services ...${NC}"
+sudo modprobe usbip_host
+sudo usbipd & 
+
+echo "${BLUE}STEP 2 : listing available devices ...${NC}"
+DEVICE_ARRAY=$(sudo usbip list -l|cut -d " " -f 4|grep [0-9])
+#echo "Devices connected are"
+for DEVICE in $DEVICE_ARRAY
+do
+	sudo usbip bind -b $DEVICE
+done
+
