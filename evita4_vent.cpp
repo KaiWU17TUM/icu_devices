@@ -2,7 +2,7 @@
 
 Evita4_vent::Evita4_vent(){
     local_serial_port = new MySerialPort();
-    local_serial_port->serial->setPortName("/dev/ttyUSB1");
+    local_serial_port->serial->setPortName("/dev/ttyUSB4");
     local_serial_port->serial->setBaudRate(QSerialPort::Baud19200);
     local_serial_port->serial->setDataBits(QSerialPort::Data8);
     local_serial_port->serial->setParity(QSerialPort::EvenParity);
@@ -11,7 +11,7 @@ Evita4_vent::Evita4_vent(){
     QObject::connect(local_serial_port->serial, SIGNAL(readyRead()), this, SLOT(process_buffer()));
 
     timer_cp1 = new QTimer();
-    connect(timer_cp1, SIGNAL(timeout()), this, SLOT(request_measurement_cp1()));
+    connect(timer_cp1, SIGNAL(timeout()), this, SLOT(request_device_settings()));
 }
 
 void Evita4_vent::start(){
