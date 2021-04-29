@@ -36,10 +36,12 @@ private:
     std::vector<unsigned char>b_list;
 
     void request_phdb_transfer();
-    void create_frame_list_from_byte(byte b);
-    void read_packet_from_frame();
     void request_wave_transfer();
     void tx_buffer(byte* payload, int length);
+
+    void create_frame_list_from_byte(byte b);
+    void read_packet_from_frame();
+
     void validate_add_data(std::string physio_id, short value, double decimalshift, bool rounddata);
     std::string validate_wave_data(short value, double decimalshift, bool rounddata);
     void save_basic_sub_record(datex::dri_phdb driSR);

@@ -9,15 +9,12 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-
-    /*
     Bbraun my_perfusor;
     my_perfusor.start();
 
-
     GE_Monitor my_monitor;
     my_monitor.start();
-*/
+
     Evita4_vent my_evita4_vent;
     my_evita4_vent.start();
 
