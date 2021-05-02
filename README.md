@@ -7,7 +7,8 @@ Icu_devices_project
 │   LICENSE    
 │
 └───document : 
-|   |   
+|   |   imgs
+|   |   docu [contains official documents for devices]
 |   |   hardware_list.md
 |   |   ...
 |
@@ -28,7 +29,7 @@ Icu_devices_project
 
 ```
 The connection is shown in the following graph, more detailed description about connections can be found in the file *hardware_list.md*
-<img src="./documents/Connection.png">
+<img src="./documents/imgs/Connection.png">
 <br>
 
 ## Folder **scripts**
@@ -57,7 +58,7 @@ Inside this folder you will see 4 bash scripts. They are used to automatically c
 In this folder you will see the Qt project to retrieve data from medical devices. 
 \
 \
-<img src='./documents/UML.png'>
+<img src='./documents/imgs/UML.png'>
 \
 \
 In general, since all medical devices use serial protocal to do the communication, they all inherited from the Device class who contains a Qtserial port for serial communicating. Since they have similar workflow, the common functions can be refactored into father class in the future.

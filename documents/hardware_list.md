@@ -24,7 +24,7 @@
 ## GE_Monitor B650: 
     The connection : GE_Monitor -> ATEN UC-232A USB serial converter -> NUll-Modem -> Gender Changer -> Serial to USB -> Raspberry pi 4
 <br>
-<img src="GE_Monitor.png", width="300" > 
+<img src="./imgs/GE_Monitor.png", width="300" > 
 
 <em>GE monitor B650, connects any of the 4 USB ports for serial communication</em>
 
@@ -34,14 +34,14 @@ monitors). Plug this converter into the USB port on the back of the instrument .
 any of the four USB ports on the back of the monitor.
 
 <br>
-<img src="ATEN.png", width="300">
+<img src="./imgs/ATEN.png", width="300">
 
 <em>ATEN UC-232A USB serial converter</em>
 
 To connect to raspberry pi's serial port, we still need a null modem
 (crossed) connector to change the gender from Cross to Direct. In our case, we still need a gender type changer to change the Female/Male of port, before connect it to a serial-to-usb converter.
 
-<img src="null-modem.png" >\
+<img src="./imgs/null-modem.png" >\
 <em>null modem connector</em>
 
 
@@ -49,7 +49,7 @@ To connect to raspberry pi's serial port, we still need a null modem
     The connection is BBraun Spacecom -> self-made serial cable  -> ATEN UC-232A USB serial converter -> Raspberry pi
 
 <br>
-<img src="BBraun.png", width="300" >
+<img src="./imgs/BBraun.png", width="300" >
 
 <em>BBraun SpaceCom, here we use its serial port for communication</em>
 
@@ -62,6 +62,6 @@ No. 5 of Female 9-pin DSUB terminal. (This is done by Dr. Eichhorn)
     The connection is Evita4 ventilator -> serial to serial -> null-modem -> ATEN UC-232A USB serial converter -> Raspberry pi
 
 <br>
-<img src="Evita4.png", width="300" >
+<img src="./imgs/Evita4.png", width="300" >
 
 <em>Evita4 ventilator, the serial port is found in the backside of the machine</em>
