@@ -1,12 +1,16 @@
 # icu_devices
-This is an implementation for data retrieving from ICU devices and realsense camera, a description with  detail is found in the file hardware_list.txt.
+This is an implementation for data retrieving from ICU devices and realsense camera.
 
 ```
 Icu_devices_project
-│   hardware_list.txt
 │   README.md
 │   LICENSE    
 │
+└───document : 
+|   |   
+|   |   hardware_list.md
+|   |   ...
+|
 └───code : [Code for data retrieving]
 │   │   bbraun_const.h
 │   │   bbraun.cpp
@@ -23,11 +27,9 @@ Icu_devices_project
     │   ...
 
 ```
-The connection is shown in the following graph, amore detailed description can be found in the file *hardware_list.txt*
-<img src="Connection.png">
-
-
-
+The connection is shown in the following graph, more detailed description about connections can be found in the file *hardware_list.md*
+<img src="./documents/Connection.png">
+<br>
 
 ## Folder **scripts**
 Inside this folder you will see 4 bash scripts. They are used to automatically connect hardwares (ICU devices and cameras) to station via usbip service.
@@ -48,15 +50,14 @@ Inside this folder you will see 4 bash scripts. They are used to automatically c
 > **STEP2 :  Copy and run commands in Raspberry pi** : Copy cancel_remote.sh file to two raspberry pi and run the file there. It will unbind devices and kill the usbip service.
 
 \
-\
-\
+<br>
 
 
 ## Folder **code**
 In this folder you will see the Qt project to retrieve data from medical devices. 
 \
 \
-<img src='UML.png'>
+<img src='./documents/UML.png'>
 \
 \
 In general, since all medical devices use serial protocal to do the communication, they all inherited from the Device class who contains a Qtserial port for serial communicating. Since they have similar workflow, the common functions can be refactored into father class in the future.
@@ -78,3 +79,5 @@ Evita4_vent
 │   draeger.h  
 
 ```
+
+There is a function called start() in all ICU_devices, which is the main loop of program flow, you can change the request and period. More detailed descriptions are found in documents folder.
