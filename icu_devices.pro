@@ -1,6 +1,6 @@
 QT += serialport
 
-CONFIG += c++11 console
+CONFIG += qt c++11 console
 CONFIG -= app_bundle
 
 # You can make your code fail to compile if it uses deprecated APIs.
@@ -8,22 +8,22 @@ CONFIG -= app_bundle
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-        bbraun.cpp \
-        device.cpp \
-        evita4_vent.cpp \
-        ge_monitor.cpp \
-        main.cpp \
-        myserialport.cpp
+    src/bbraun.cpp \
+    src/device.cpp \
+    src/evita4_vent.cpp \
+    src/ge_monitor.cpp \
+    src/main.cpp \
+    src/myserialport.cpp
 
 HEADERS += \
-    bbraun.h \
-    bbraun_const.h \
-    datex.h \
-    device.h \
-    evita4_vent.h \
-    ge_monitor.h \
-    myserialport.h \
-    draeger.h
+    src/bbraun.h \
+    src/bbraun_const.h \
+    src/datex.h \
+    src/device.h \
+    src/evita4_vent.h \
+    src/ge_monitor.h \
+    src/myserialport.h \
+    src/draeger.h
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
