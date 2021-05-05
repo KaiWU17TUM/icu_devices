@@ -35,7 +35,7 @@ done
 
 DEVICES_AVAILABLE=$(sudo /usr/lib/linux-tools/4.15.0-135-generic/usbip list -r $IP_RASP2|grep vendor|cut -d ":" -f 1)
 
-echo "Look Here > ${DEVICES_AVAILABLE} ${IP_RASP2}"
+#echo "Look Here > ${DEVICES_AVAILABLE} ${IP_RASP2}"
 
 for DEVICE in $DEVICES_AVAILABLE
 do
@@ -43,6 +43,16 @@ do
 	sudo /usr/lib/linux-tools/4.15.0-135-generic/usbip attach -r $IP_RASP2 -b $DEVICE
 done
 
-
+echo "${BLUE}STEP 4 : Changing access permission of USB devices ... $IP_RASP1 ${NC}"
+sleep 3
+DEVICES_CONNECTED=$(ls /dev/|grep ttyUSB*)
+for DEVICE in $DEVICES_CONNECTED
+do
+	echo $DEVICE
+	sudo chmod +777 /dev/$DEVICE
+done
 
 echo "${GREEN}Finish initialization ${NC}"
+echo "${BLUE}Start the program to acquire data from devices ${NC}"
+./../../build-ICU_devices-Desktop-Debug/ICU_devices
+

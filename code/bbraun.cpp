@@ -7,7 +7,7 @@ Bbraun::Bbraun()
     AdditionalParameters = AdditionalParameters2;
 
     local_serial_port = new MySerialPort();
-    local_serial_port->serial->setPortName("/dev/ttyUSB5");
+    local_serial_port->serial->setPortName("/dev/ttyUSB2");
     local_serial_port->serial->setBaudRate(QSerialPort::Baud9600);
     local_serial_port->serial->setDataBits(QSerialPort::Data8);
     local_serial_port->serial->setParity(QSerialPort::NoParity);
