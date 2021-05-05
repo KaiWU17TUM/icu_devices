@@ -1,11 +1,15 @@
-#! /bin/bash
-echo "STEP 2 : Unbanding available devices..."
+#!/bin/bash
+
+BLUE='\033[0;36m'
+NC='\033[0m'
+
+printf "${BLUE}Detaching available devices ${NC}\n"
 DEVICE_ARRAY=$(sudo usbip list -l|cut -d " " -f 4|grep [0-9])
-#echo "Devices connected are"
 for DEVICE in $DEVICE_ARRAY
 do
-        echo $DEVICE
+	printf "$DEVICE \n"
         sudo usbip unbind -b $DEVICE
 done
 
 sudo killall -9 usbipd
+

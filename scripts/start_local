@@ -1,0 +1,69 @@
+#!/bin/bash
+
+GREEN='\033[1;32m'
+BLUE='\033[0;36m'
+NC='\033[0m'
+
+IP_RASP1='10.42.0.67'
+IP_RASP2='10.42.1.46'
+RASP1='pi@'${IP_RASP1}
+RASP2='pi@'${IP_RASP2}
+
+printf "\n${GREEN}================================================================================\n"
+printf "Start initialization to setup hardwares in mocked ICU room\n"
+printf "================================================================================${NC}\n"
+
+printf "\n${BLUE}********************************************************************************\n"
+printf "STEP 1a : Copy and run commands in Raspberry pi ${IP_RASP1} ${NC}\n"
+scp -i ~/.ssh/id_rsa start_remote ${RASP1}:/home/pi/
+ssh -i ~/.ssh/id_rsa ${RASP1} './start_remote  > /dev/null 2>&1 &'
+
+printf "${BLUE}STEP 1b : Copy and run commands in Raspberry pi ${IP_RASP2} ${NC}\n"
+scp -i ~/.ssh/id_rsa start_remote ${RASP2}:/home/pi/
+ssh -i ~/.ssh/id_rsa ${RASP2} './start_remote  > /dev/null 2>&1 &'
+
+printf "${BLUE}Running commands in localmachine ${NC}\n"
+
+sleep 2
+
+printf "\n${BLUE}********************************************************************************\n"
+printf "STEP 2 : Mounting necessary driver for usb-ip ... ${NC}\n"
+sudo modprobe vhci-hcd
+
+printf "\n${BLUE}********************************************************************************\n"
+printf "STEP 3a : Connecting existing devices from ip address ... $IP_RASP1 ${NC}\n"
+DEVICES_AVAILABLE=$(sudo /usr/lib/linux-tools/4.15.0-135-generic/usbip list -r $IP_RASP1|grep vendor|cut -d ":" -f 1)
+
+for DEVICE in $DEVICES_AVAILABLE
+do
+	printf "$DEVICE \n"
+	sudo /usr/lib/linux-tools/4.15.0-135-generic/usbip attach -r $IP_RASP1 -b $DEVICE
+done
+
+printf "${BLUE}STEP 3b : Connecting existing devices from ip address ... $IP_RASP1 ${NC}\n"
+DEVICES_AVAILABLE=$(sudo /usr/lib/linux-tools/4.15.0-135-generic/usbip list -r $IP_RASP2|grep vendor|cut -d ":" -f 1)
+
+for DEVICE in $DEVICES_AVAILABLE
+do
+        printf "$DEVICE \n"
+
+	sudo /usr/lib/linux-tools/4.15.0-135-generic/usbip attach -r $IP_RASP2 -b $DEVICE
+done
+
+printf "\n${BLUE}********************************************************************************\n"
+printf "STEP 4 : Changing access permission of USB devices ... $IP_RASP1 ${NC}\n"
+sleep 3
+DEVICES_CONNECTED=$(ls /dev/|grep ttyUSB*)
+for DEVICE in $DEVICES_CONNECTED
+do
+        printf "$DEVICE \n"
+	sudo chmod +777 /dev/$DEVICE
+done
+
+printf "\n${GREEN}================================================================================\n"
+printf "Finish initialization\n"
+printf "================================================================================${NC}\n\n"
+
+# printf "${BLUE}Start the program to acquire data from devices ${NC}"
+# ./../../build-ICU_devices-Desktop-Debug/ICU_devices
+
