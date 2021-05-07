@@ -33,4 +33,4 @@ The response corresponds to
     3. Current measured Data (codepage 2)
     4. All the text messages the requested device currently holds for user information, along with the text code, text length and an end-of-text marker.
 
-A more detailed description for measured data is found in page 17 of ducument *evita4_data*
+A more detailed description for measured data is found in page 17 of ducument *intensive_care_devices.pdf*
