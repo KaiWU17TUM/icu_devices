@@ -516,9 +516,7 @@ struct wr_srcrds{
     // byte ph_subrec[5*sizeof(struct dri_phdb)]; //one physiological database record accomodates up to five subrecords
     short   *data;
 };
-struct al_srcrds{
-    byte ph_subrec[5*sizeof(struct dri_phdb)]; //one physiological database record accomodates up to five subrecords
-};
+
 
 struct nw_srcrds{
 //    struct nw_login_msg a1;
@@ -554,23 +552,28 @@ struct dri_phdb_req{
     short reserved;
 };
 
+//Valid waveform subrecord types
+#define DRI_AL_XMIT_STATUS 0
+#define DRI_AL_ENTER_DIFFMODE 2
+#define DRI_AL_EXIT_DIFFMODE 3
 
-
-struct datex_record{
-    struct datex_hdr hdr;
-    union{
-        struct wr_srcrds wf_rcrd;
-        struct ph_srcrds ph_rcrd;
-        struct al_srcrds al_rcrd;
-        struct nw_srcrds nw_rcrd;
-        struct fo_srcrds fo_rcrd;
-        byte            data[1450];
-    }rcrd;
+#pragma pack(1)
+struct al_tx_cmd{
+    short cmd;
+    short reserved[5];
 };
+
+
+
 
 struct datex_record_phdb_req{
     struct datex_hdr hdr;
     struct dri_phdb_req phdbr;
+};
+
+struct datex_record_alarm_req{
+    struct datex_hdr hdr;
+    struct al_tx_cmd alarm_cmd;
 };
 ///////////////////////////////////////////////////////////
 
@@ -638,42 +641,30 @@ enum dri_alarm_color{
     DRI_PR3 = 3,
 };
 
-
+#pragma pack(1)
 struct al_disp_al{
     char text[80];
-    boolean text_changed;
-    enum dri_alarm_color color;
-    boolean color_changed;
+    short text_changed;
+    short color;
+    short color_changed;
     short   reserved[6];
 };
 
+#pragma pack(1)
 struct dri_al_msg{
     short reserved;
-    boolean sound_on_off;
+    short sound_on_off;
     short reserved2;
     short reserved3;
-    enum dri_silience_info  silience_info;
+    short silience_info;
     struct al_disp_al   al_disp[5];
     short   reserved4[5];
 
 };
 
-enum dri_al_tx_cmds{
-    DRI_AL_XMIT_STATUS = 0,
-    DRI_AL_ENTER_DIFFMODE = 2,
-    DRI_AL_EXIT_DIFFMODE = 3
+struct al_srcrds{
+    struct dri_al_msg   local_dri_al_msg;
 };
-
-struct al_tx_cmds{
-    enum dri_al_tx_cmds cmd;
-    short reserved[5];
-};
-
-struct datex_alarm_req{
-    struct datex_hdr hdr;
-    struct al_tx_cmds alreq;
-};
-
 
 /*network managemnet*/
 struct nw_dev_descr
@@ -714,7 +705,17 @@ struct nw_pat_descr{
     short   reserved[59];
 };
 
-
+struct datex_record{
+    struct datex_hdr hdr;
+    union{
+        struct wr_srcrds wf_rcrd;
+        struct ph_srcrds ph_rcrd;
+        struct al_srcrds al_rcrd;
+        struct nw_srcrds nw_rcrd;
+        struct fo_srcrds fo_rcrd;
+        byte            data[1450];
+    }rcrd;
+};
 
 
 

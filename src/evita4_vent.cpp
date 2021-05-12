@@ -328,8 +328,13 @@ void Evita4_vent::command_echo_response(std::vector<byte>& cmd){
 
 void Evita4_vent::save_num_val_list_rows(std::string datatype){
     if(numval_list.size()!=0){
-        write_num_header_list(datatype);
-        std::string filename = pathcsv +datatype+".csv";
+        std::time_t result = std::time(nullptr);
+        std::string pkt_timestamp =std::asctime(std::localtime(&result));
+        pkt_timestamp.erase(8,11);
+
+        QString filename = pathcsv + QString::fromStdString(pkt_timestamp) + QString::fromStdString(datatype)+".csv";
+        write_num_header_list(datatype, filename);
+
         std::string row;
         row+=(numval_list[0].Timestamp);
         row.append(",");
@@ -339,7 +344,7 @@ void Evita4_vent::save_num_val_list_rows(std::string datatype){
             row.append(",");
         }
         row.append("\n");
-        QFile myfile(QString::fromStdString(filename));
+        QFile myfile(filename);
         if (myfile.open(QIODevice::Append)) {
             myfile.write((char*)&row[0], row.length());
 
@@ -348,10 +353,10 @@ void Evita4_vent::save_num_val_list_rows(std::string datatype){
     }
 }
 
-void Evita4_vent::write_num_header_list(std::string datatype){
+void Evita4_vent::write_num_header_list(std::string datatype, QString filename){
     if(write_header_for_data_type(datatype)){
         std::string header;
-        std::string filename = pathcsv +datatype+".csv";
+
         header.append("Time");
         header.append(",");
 
@@ -360,7 +365,7 @@ void Evita4_vent::write_num_header_list(std::string datatype){
                 header.append(",");
         }
         header.append("\n");
-        QFile myfile(QString::fromStdString(filename));
+        QFile myfile(filename);
         if (myfile.open(QIODevice::Append)) {
             myfile.write((char*)&header[0], header.length());
         }

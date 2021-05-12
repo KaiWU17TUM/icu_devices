@@ -228,8 +228,13 @@ void Bbraun::save_num_values_by_type(){
 }
 
 void Bbraun::save_num_value_list_row(std::string datatype){
-    write_num_header_list(datatype);
-    std::string filename =pathcsv+datatype+".csv";
+    std::time_t result = std::time(nullptr);
+    std::string pkt_timestamp =std::asctime(std::localtime(&result));
+    pkt_timestamp.erase(8,11);
+
+    QString filename = pathcsv + QString::fromStdString(pkt_timestamp) + QString::fromStdString(datatype)+".csv";
+    write_num_header_list(datatype, filename);
+
     std::string row;
     row.append(numval_list[0].Timestamp);
     row.append(",");
@@ -249,17 +254,17 @@ void Bbraun::save_num_value_list_row(std::string datatype){
         }
     }
     row.append("\n");
-    QFile myfile(QString::fromStdString(filename));
+    QFile myfile(filename);
     if (myfile.open(QIODevice::Append)) {
         myfile.write((char*)&row[0], row.length());
     }
     numval_list.erase(numval_list.begin(), numval_list.begin()+elementcount);
 }
 
-void Bbraun::write_num_header_list(std::string datatype){
+void Bbraun::write_num_header_list(std::string datatype, QString filename){
     if(write_header_for_data_type(datatype)){
         std::string header;
-        std::string filename = pathcsv+datatype+".csv";
+
         header.append("Time");
         header.append(",");
         header.append("RelativeTime");
@@ -273,7 +278,7 @@ void Bbraun::write_num_header_list(std::string datatype){
             }
         }
         header.append("\n");
-        QFile myfile(QString::fromStdString(filename));
+        QFile myfile(filename);
         if (myfile.open(QIODevice::Append)) {
             myfile.write((char*)&header[0], header.length());
         }

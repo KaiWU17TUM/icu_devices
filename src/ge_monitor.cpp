@@ -23,8 +23,9 @@ void GE_Monitor::start(){
         request_wave_stop();
 
         std::cout<<"Try to get data from GE Monitor"<<std::endl;
-        request_phdb_transfer();
-        request_wave_transfer();
+        request_alarm_transfer();
+        //request_phdb_transfer();
+        //request_wave_transfer();
 
 
     }  catch (const std::exception& e) {
@@ -56,6 +57,33 @@ void GE_Monitor::request_phdb_transfer(){
     pRequest->phdb_rcrd_type = DRI_PH_DISPL;
     pRequest->tx_ival = 10;
     pRequest->phdb_class_bf = DRI_PHDBCL_REQ_BASIC_MASK|DRI_PHDBCL_REQ_EXT1_MASK|DRI_PHDBCL_REQ_EXT2_MASK|DRI_PHDBCL_REQ_EXT3_MASK;
+
+    byte* payload = (byte*)&requestPkt;
+    int length = sizeof(requestPkt);
+    //return payload
+    tx_buffer(payload,length);
+}
+
+void GE_Monitor::request_alarm_transfer(){
+    struct datex::datex_record_alarm_req requestPkt;
+    struct datex::al_tx_cmd *pRequest;
+
+    //Clear the pkt
+    memset(&requestPkt,0x00,sizeof(requestPkt));
+
+    //Fill the header
+    requestPkt.hdr.r_len = sizeof(struct datex::datex_hdr)+sizeof(struct datex::al_tx_cmd);
+    requestPkt.hdr.r_maintype = DRI_MT_ALARM;
+    requestPkt.hdr.dri_level =  0;
+
+    //The pkt contains one subrecord
+    requestPkt.hdr.sr_desc[0].sr_type = 0;
+    requestPkt.hdr.sr_desc[0].sr_offset = (byte)0;
+    requestPkt.hdr.sr_desc[1].sr_type = (short) DRI_EOL_SUBR_LIST;
+
+    //Fill the request
+    pRequest = (struct datex::al_tx_cmd*)&(requestPkt.alarm_cmd);
+    pRequest->cmd = DRI_AL_ENTER_DIFFMODE;
 
     byte* payload = (byte*)&requestPkt;
     int length = sizeof(requestPkt);
@@ -334,9 +362,62 @@ void GE_Monitor::read_packet_from_frame(){
                 wave_val.Value = waveValList;
                 m_WaveValList.push_back(wave_val);
             }
-
+            save_wave_to_csv();
         }
-        save_wave_to_csv();
+        //save_wave_to_csv();
+
+        else if(record.hdr.r_maintype == DRI_MT_ALARM){
+            uint unixtime = record.hdr.r_time;
+
+            for(int j=0;j<8&&record.hdr.sr_desc[j].sr_type!=0xFF;j++){
+                int offset = (int)record.hdr.sr_desc[j].sr_offset;
+                byte buffer[270];
+                for(int n=0;n<270;n++){
+                    buffer[n] = record.rcrd.data[offset+n];
+                }
+                struct datex::dri_al_msg dri_al_msg_ptr;
+                dri_al_msg_ptr = *(struct datex::dri_al_msg*)buffer;
+
+                int size = sizeof(struct datex::al_disp_al);
+                std::time_t temp = unixtime;
+                std::tm* t = std::gmtime(&temp);
+                std::stringstream ss;
+                ss << std::put_time(t, "%Y-%m-%d %I:%M:%S %p");
+                AlarmResult alarm[5];
+
+                for(int n=0; n<5; n++){
+                    alarm[n].Timestamp = ss.str();
+                    alarm[n].text = std::string(dri_al_msg_ptr.al_disp[n].text);
+                    for(int m=0;m<alarm[n].text.length();m++){
+                        if(alarm[n].text[m]=='\n'){
+                            alarm[n].text[m]=' ';
+                            break;
+                        }
+                }
+
+                switch(dri_al_msg_ptr.al_disp[n].color){
+                    case 0:
+                        alarm[n].color = "DRI_PR0";
+                        break;
+                    case 1:
+                        alarm[n].color = "DRI_PR1";
+                        break;
+                    case 2:
+                        alarm[n].color = "DRI_PR2";
+                        break;
+                    case 3:
+                        alarm[n].color = "DRI_PR3";
+                        break;
+                }
+                if(dri_al_msg_ptr.al_disp[n].text_changed==1){
+                    m_AlarmList.push_back(alarm[n]);
+                }
+
+            }
+        }
+            save_alarm_to_csv();
+    }
+
 
     }
 }
@@ -370,9 +451,48 @@ double GE_Monitor::get_wave_unit_shift(std::string physioId){
 
 }
 
+void GE_Monitor::save_alarm_to_csv(){
+    for(int i=0; i<m_AlarmList.size(); i++){
+
+        // Get local time
+        std::time_t result = std::time(nullptr);
+        std::string pkt_timestamp =std::asctime(std::localtime(&result));
+        pkt_timestamp.erase(8,11);
+
+        QString filename =  pathcsv + QString::fromStdString(pkt_timestamp) + "_Alarm.csv";
+
+        std::string row;
+
+        if((m_AlarmList[i].text.length())>0){
+            row.append(m_AlarmList[i].Timestamp);
+            row.append(",");
+            row.append( m_AlarmList[i].text);
+            row.append(",");
+            row.append(m_AlarmList[i].color);
+            row.append(",\n");
+
+            QFile myfile(filename);
+            if (myfile.open(QIODevice::Append)) {
+                myfile.write((char*)&row[0], row.length());
+                qDebug()<<"write to alarm file";
+            }
+        }
+
+    }
+    m_AlarmList.clear();
+}
+
+
 void GE_Monitor::save_wave_to_csv(){
     for(int i=0; i<m_WaveValList.size(); i++){
-        std::string filename =  pathcsv+m_WaveValList[i].PhysioID+"DataExport.csv";
+
+        // Get local time
+        std::time_t result = std::time(nullptr);
+        std::string pkt_timestamp =std::asctime(std::localtime(&result));
+        pkt_timestamp.erase(8,11);
+
+        QString filename =  pathcsv + QString::fromStdString(pkt_timestamp) + QString::fromStdString(m_WaveValList[i].PhysioID) + ".csv";
+
         double decimalshift = m_WaveValList[i].Unitshift;
         std::string row;
         for(int j=0;j<m_WaveValList[i].Value.size();j++){
@@ -384,7 +504,7 @@ void GE_Monitor::save_wave_to_csv(){
             row.append(",\n");
         }
 
-        QFile myfile(QString::fromStdString(filename));
+        QFile myfile(filename);
         if (myfile.open(QIODevice::Append)) {
             myfile.write((char*)&row[0], row.length());
             qDebug()<<"write to wave file";
@@ -392,7 +512,6 @@ void GE_Monitor::save_wave_to_csv(){
     }
     m_WaveValList.clear();
 }
-
 
 
 void GE_Monitor::save_basic_sub_record(datex::dri_phdb driSR){
@@ -538,7 +657,12 @@ void GE_Monitor::validate_add_data(std::string physio_id, short value, double de
 void GE_Monitor::write_to_rows(){
     if (m_NumericValList.size() != 0)
     {
-        write_to_file_header();
+        std::time_t result = std::time(nullptr);
+        std::string pkt_timestamp =std::asctime(std::localtime(&result));
+        pkt_timestamp.erase(8,11);
+        QString filename = pathcsv + QString::fromStdString(pkt_timestamp) + "PHDB_data.csv";
+
+        write_to_file_header(filename);
         std::string row;
         row.append("\n");
         row.append(m_NumericValList[0].Timestamp);
@@ -549,7 +673,7 @@ void GE_Monitor::write_to_rows(){
             row.append(",");
         }
 
-        QFile myfile(QString::fromStdString(pathcsv+"AS3DataExport.csv"));
+        QFile myfile(filename);
         if (myfile.open(QIODevice::Append)) {
             myfile.write((char*)&row[0], row.length());
             qDebug()<<"write to phdb";
@@ -559,7 +683,7 @@ void GE_Monitor::write_to_rows(){
 }
 
 
-void GE_Monitor::write_to_file_header()
+void GE_Monitor::write_to_file_header(QString filename)
 {
     if (m_NumericValList.size() != 0 && m_transmissionstart)
     {
@@ -573,7 +697,7 @@ void GE_Monitor::write_to_file_header()
             headers.append(",");
         }
 
-        QFile myfile(QString::fromStdString(pathcsv+"AS3DataExport.csv"));
+        QFile myfile(filename);
         if (myfile.open(QIODevice::WriteOnly)) {
             myfile.write((char*)&headers[0], headers.length());
         }

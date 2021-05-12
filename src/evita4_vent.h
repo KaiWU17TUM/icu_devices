@@ -8,6 +8,7 @@
 #include <chrono>
 #include <ctime>
 #include <QFile>
+#include <QDir>
 #include <QTimer>
 #include <iostream>
 
@@ -25,7 +26,7 @@ public:
 
 private:
     QTimer *timer_cp1;
-    std::string pathcsv = ("/home/dhm/workspace/icu_devices/DrgVentDataExport.csv");
+    QString pathcsv = QDir::currentPath() + "/../icu_devices/data/draeger_evita4/";
     bool m_storestart2 = true;
     bool m_storestart1 = false;
     bool m_storeend = false;
@@ -49,7 +50,7 @@ private:
     void parse_data_device_settings(std::vector<byte> &packetbuffer);
     void parse_data_text_settings(std::vector<byte> &packetbuffer);
     bool write_header_for_data_type(std::string datatype);
-    void write_num_header_list(std::string datatype);
+    void write_num_header_list(std::string datatype, QString filename);
     void save_num_val_list_rows(std::string datatype);
 
 public slots:

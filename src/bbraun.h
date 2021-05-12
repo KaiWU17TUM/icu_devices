@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QTimer>
 #include <map>
+#include <QDir>
 #include "bbraun_const.h"
 
 
@@ -24,7 +25,7 @@ private:
     std::map<std::string, std::string> AdditionalParameters;
     QTimer *timer_cp1;
     std::vector<byte> m_bedid;
-    std::string pathcsv = "/home/dhm/workspace/icu_devices/BCCDataExport.csv";
+    QString pathcsv = QDir::currentPath()+"/../icu_devices/data/bbraun_perfusor/";
     bool ack_flag = false;
     bool m_fstart = false;
     bool m_storestart = false;
@@ -54,7 +55,7 @@ private:
     void save_num_values_by_type();
     void save_num_value_list_row(std::string datatype);
     bool write_header_for_data_type(std::string datatype);
-    void write_num_header_list(std::string datatype);
+    void write_num_header_list(std::string datatype, QString filename);
 
 private slots:
     void process_buffer();

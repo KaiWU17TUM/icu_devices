@@ -10,6 +10,8 @@
 #include <ctime>
 #include <sstream>
 #include <iomanip>
+#include <QDir>
+
 class GE_Monitor: public Device
 {
 Q_OBJECT
@@ -27,9 +29,10 @@ private:
     std::string m_strTimestamp;
     std::string m_DeviceID = "GE_Monitor";
     bool m_transmissionstart = true;
-    std::string pathcsv = ("/home/dhm/workspace/icu_devices/");
+    QString pathcsv = QDir::currentPath()+"/../icu_devices/data/ge_monitor_b650/";
     std::vector<struct NumericValResult> m_NumericValList;
     std::vector<struct WaveValResult> m_WaveValList;
+    std::vector<struct AlarmResult> m_AlarmList;
     std::vector<std::string> m_NumValHeaders;
 
     std::vector<std::vector<unsigned char>>frame_buffer;
@@ -46,10 +49,12 @@ private:
     std::string validate_wave_data(short value, double decimalshift, bool rounddata);
     void save_basic_sub_record(datex::dri_phdb driSR);
     void write_to_rows();
-    void write_to_file_header();
+    void write_to_file_header(QString filename);
     void save_ext1_and_ext2_record(datex::dri_phdb driSR);
     double get_wave_unit_shift(std::string physioId);
+    void request_alarm_transfer();
     void save_wave_to_csv();
+    void save_alarm_to_csv();
     void request_wave_stop();
     Q_DISABLE_COPY(GE_Monitor);
 
@@ -77,4 +82,12 @@ struct  WaveValResult
     double Unitshift;
 };
 
+#pragma pack(1)
+struct  AlarmResult
+{
+    std::string Timestamp;
+    std::string text;
+    std::string color;
+    std::string sound;
+};
 #endif // GE_MONITOR_H
