@@ -92,6 +92,12 @@ const std::map<byte, std::string> WaveIdLabels{
      stringpair_t(29, "DRI_WF_SPI_LOOP_STATUS"),
      stringpair_t(32, "DRI_WF_ENT_100"),
      stringpair_t(35, "DRI_WF_EEG_BIS"),
+     stringpair_t(36, "DRI_WF_INVP7"),
+     stringpair_t(37, "DRI_WF_INVP8"),
+     stringpair_t(38, "DRI_WF_PLETH2"),
+     stringpair_t(39, "DRI_WF_HGHRES_RESP_IMP"),
+
+
 };
 
 struct phdb_status_bits{
@@ -263,7 +269,7 @@ struct basic_phdb{
     struct co_wedge_group co_wedge;
     struct nmt_group nmt;
     struct ecg_extra_group ecg_extra;
-    struct svo2_group svo2_group;
+    struct svo2_group svo2;
     struct p_group p5;
     struct p_group p6;
 
@@ -271,10 +277,11 @@ struct basic_phdb{
 };
 
 /*EXT1 Class*/
-struct arrch_ecg_group{
+struct arrh_ecg_group{
     struct group_hdr    hdr;
     short               hr;
     short               rr_time;
+    short               pvc;
     dword               arrch_status_bf;
     short               reserved[16];
 };
@@ -296,9 +303,10 @@ struct ecg_12_group{
 };
 
 struct ext1_phdb{
-    struct arrch_ecg_group ecg;
+    struct arrh_ecg_group arrh_ecg;
     struct ecg_12_group    ecg12;
-    struct p_group         p78[2];
+    struct p_group         p7;
+    struct p_group         p8;
     struct SpO2_pl_group   SpO2_ch2;
     struct t_group         t56[2];
     byte                   reserved[134];
@@ -582,7 +590,21 @@ struct datex_record_alarm_req{
 #define DRI_WF_ECG1 1
 #define DRI_WF_ECG2 2
 #define DRI_WF_ECG3 3
-#define DRI_WF_INCP1 4
+#define DRI_WF_INVP1 4
+#define DRI_WF_INVP2 5
+#define DRI_WF_INVP3 6
+#define DRI_WF_INVP4 7
+#define DRI_WF_INVP5 16
+#define DRI_WF_INVP6 17
+#define DRI_WF_INVP7 36
+#define DRI_WF_INVP8 37
+#define DRI_WF_PLETH 8
+#define DRI_WF_PLETH_2 38
+#define DRI_WF_CO2 9
+#define DRI_WF_O2 10
+#define DRI_WF_EEG_BIS 36
+#define DRI_WF_RESP_100 39
+
 //TODO::fill the data constants
 #pragma pack(1)
 struct dri_wave_req{

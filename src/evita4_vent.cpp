@@ -11,7 +11,7 @@ Evita4_vent::Evita4_vent(){
     QObject::connect(local_serial_port->serial, SIGNAL(readyRead()), this, SLOT(process_buffer()));
 
     timer_cp1 = new QTimer();
-    connect(timer_cp1, SIGNAL(timeout()), this, SLOT(request_device_settings()));
+    connect(timer_cp1, SIGNAL(timeout()), this, SLOT(request_measurement_cp1()));
 }
 
 void Evita4_vent::start(){

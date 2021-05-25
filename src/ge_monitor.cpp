@@ -24,8 +24,8 @@ void GE_Monitor::start(){
 
         std::cout<<"Try to get data from GE Monitor"<<std::endl;
         request_alarm_transfer();
-        //request_phdb_transfer();
-        //request_wave_transfer();
+        request_phdb_transfer();
+        request_wave_transfer();
 
 
     }  catch (const std::exception& e) {
@@ -112,7 +112,11 @@ void GE_Monitor::request_wave_transfer(){
     pRequest = (struct datex::dri_wave_req*)&(requestPkt.wfreq);
     pRequest->req_type = WF_REQ_CONT_START;
     pRequest->type[0] = DRI_WF_ECG1;
-    pRequest->type[1] = DRI_EOL_SUBR_LIST;
+    pRequest->type[1] = DRI_WF_PLETH;
+    pRequest->type[2] = DRI_WF_INVP1;
+    pRequest->type[3] = DRI_WF_INVP2;
+
+    pRequest->type[4] = DRI_EOL_SUBR_LIST;
 
     byte* payload = (byte*)&requestPkt;
     int length = sizeof(requestPkt);
@@ -315,17 +319,22 @@ void GE_Monitor::read_packet_from_frame(){
                 std::tm* t = std::gmtime(&temp);
                 std::stringstream ss;
                 ss << std::put_time(t, "%Y-%m-%d %I:%M:%S %p");
-                m_strTimestamp = ss.str();
+                machine_timestamp = ss.str();
 
                 save_basic_sub_record(phdata_ptr);
-                save_ext1_and_ext2_record(phdata_ptr);
+                save_ext1_and_ext2_and_ext3_record(phdata_ptr);
+
             }
             write_to_rows();
         }
 
         // this is a WAVE record
         else if(record.hdr.r_maintype == DRI_MT_WAVE){
-             uint unixtime = record.hdr.r_time;
+            // the timestamp from machine
+            uint unixtime = record.hdr.r_time;
+
+            // the timestamp from pc [seconds since 01-Jan-1970]
+            unsigned long int pc_time = std::time(nullptr);
 
             // for each subrecord
             for(int j=0;j<8&&record.hdr.sr_desc[j].sr_type!=0xFF;j++){
@@ -334,18 +343,20 @@ void GE_Monitor::read_packet_from_frame(){
                 int srsamplelenbytes[2];
                 srsamplelenbytes[0] = record.rcrd.data[offset];
                 srsamplelenbytes[1] = record.rcrd.data[offset+1];
-                int srheaderlen = 6;
-                int subrecordlen = 256*(int)srsamplelenbytes[1]+(int)srsamplelenbytes[0]+srheaderlen;
-                nextoffset = offset + 2*subrecordlen;
-                int buflen = (nextoffset - offset - 6);
+                int sub_header_len = 6;
+                int subrecordlen = 256*(int)srsamplelenbytes[1]+(int)srsamplelenbytes[0];
+
+                int buflen = 2*subrecordlen; //(nextoffset - offset - 6);
                 byte * buffer = (byte *)malloc(sizeof(byte)*buflen);
                 for (int j = 0; j < buflen; j++)
                 {
-                    buffer[j] = record.rcrd.data[6 + j + offset];
+                    buffer[j] = record.rcrd.data[sub_header_len + j + offset];
                 }
                 std::vector<short> waveValList;
+                std::vector<unsigned long int> TimeList;
                 for(int n = 0; n < buflen; n += 2){
                     waveValList.push_back((buffer[n+1])*256+(buffer[n]));
+                    TimeList.push_back((unsigned long int)pc_time*1000+1000/3);
                 }
 
                 WaveValResult wave_val;
@@ -355,6 +366,7 @@ void GE_Monitor::read_packet_from_frame(){
                 ss << std::put_time(t, "%Y-%m-%d %I:%M:%S %p");
 
                 wave_val.Timestamp = ss.str();
+                wave_val.TimeList = TimeList;
                 //wave_val.DeviceID = m_DeviceID;
                 std::string physioId = datex::WaveIdLabels.find(record.hdr.sr_desc[j].sr_type)->second;
                 wave_val.PhysioID = physioId;
@@ -515,108 +527,160 @@ void GE_Monitor::save_wave_to_csv(){
 
 
 void GE_Monitor::save_basic_sub_record(datex::dri_phdb driSR){
-    short so1 = driSR.physdata.basic.ecg.hr;
-    short so2 = driSR.physdata.basic.nibp.sys;
-    short so3 = driSR.physdata.basic.nibp.dia;
-    short so4 = driSR.physdata.basic.nibp.mean;
-    short so5 = driSR.physdata.basic.SpO2.SpO2;
-    short so6 = driSR.physdata.basic.co2.et;
+    //ECG
+    validate_add_data("ECG_HR", driSR.physdata.basic.ecg.hr,1,true);
+    validate_add_data("ST1", driSR.physdata.basic.ecg.st1,0.01,true);
+    validate_add_data("ST2", driSR.physdata.basic.ecg.st2,0.01,true);
+    validate_add_data("ST3", driSR.physdata.basic.ecg.st3,0.01,true);
+    validate_add_data("HR_max",  driSR.physdata.basic.ecg_extra.hr_max,1,true);
+    validate_add_data("HR_min",  driSR.physdata.basic.ecg_extra.hr_min,1,true);
 
-    validate_add_data("ECG_HR", so1,1,true);
-    validate_add_data("NIBP_Systolic", so2, 0.01, true);
-    validate_add_data("NIBP_Diastolic", so3, 0.01, true);
-    validate_add_data("NIBP_Mean", so4, 0.01, true);
-    validate_add_data("SpO2", so5, 0.01, true);
-    short et = (so6 * driSR.physdata.basic.co2.amb_press);
-    validate_add_data("ET_CO2", et, 0.00001,true);
+    //Respiration(Impedance)
+    validate_add_data("RES_imp", driSR.physdata.basic.ecg.imp_rr,1,true);
 
-    short so7 = driSR.physdata.basic.aa.et;
-    short so8 = driSR.physdata.basic.aa.fi;
-    short so9 = driSR.physdata.basic.aa.mac_sum;
-    word so10 = driSR.physdata.basic.aa.hdr.label;
-
-    validate_add_data("AA_ET", so7, 0.01, false);
-    validate_add_data("AA_FI", so8, 0.01, false);
-    validate_add_data("AA_MAC_SUM", so9, 0.01, false);
-
-    double so11 = driSR.physdata.basic.o2.fi;
-    double so12 = driSR.physdata.basic.n2o.fi;
-    double so13 = driSR.physdata.basic.n2o.et;
-    double so14 = driSR.physdata.basic.co2.rr;
-    double so15 = driSR.physdata.basic.t1.temp;
-    double so16 = driSR.physdata.basic.t2.temp;
-
-    double so17 = driSR.physdata.basic.p1.hr;
-    double so18 = driSR.physdata.basic.p1.sys;
-    double so19 = driSR.physdata.basic.p1.dia;
-    double so20 = driSR.physdata.basic.p1.mean;
-    double so21 = driSR.physdata.basic.p2.hr;
-    double so22 = driSR.physdata.basic.p2.sys;
-    double so23 = driSR.physdata.basic.p2.dia;
-    double so24 = driSR.physdata.basic.p2.mean;
-
-    double so25 = driSR.physdata.basic.flow_vol.ppeak;
-    double so26 = driSR.physdata.basic.flow_vol.pplat;
-    double so27 = driSR.physdata.basic.flow_vol.tv_exp;
-    double so28 = driSR.physdata.basic.flow_vol.tv_insp;
-    double so29 = driSR.physdata.basic.flow_vol.peep;
-    double so30 = driSR.physdata.basic.flow_vol.mv_exp;
-    double so31 = driSR.physdata.basic.flow_vol.compliance;
-    double so32 = driSR.physdata.basic.flow_vol.rr;
-
-    validate_add_data("O2_FI", so11, 0.01, false);
-    validate_add_data("N2O_FI", so12, 0.01, false);
-    validate_add_data("N2O_ET", so13, 0.01, false);
-    validate_add_data("CO2_RR", so14, 1, false);
-    validate_add_data("T1_Temp", so15, 0.01, false);
-    validate_add_data("T2_Temp", so16, 0.01, false);
+    //Invasive pressure
+    validate_add_data("PCWP", driSR.physdata.basic.co_wedge.pcwp, 0.01, true);
+    validate_add_data("P1_PR", driSR.physdata.basic.p1.hr, 1, true);
+    validate_add_data("P1_Systolic", driSR.physdata.basic.p1.sys, 0.01, true);
+    validate_add_data("P1_Disatolic", driSR.physdata.basic.p1.dia, 0.01, true);
+    validate_add_data("P1_Mean", driSR.physdata.basic.p1.mean, 0.01, true);
+    validate_add_data("P2_PR", driSR.physdata.basic.p2.hr, 1, true);
+    validate_add_data("P2_Systolic", driSR.physdata.basic.p2.sys, 0.01, true);
+    validate_add_data("P2_Diastolic", driSR.physdata.basic.p2.dia, 0.01, true);
+    validate_add_data("P2_Mean", driSR.physdata.basic.p2.mean, 0.01, true);
+    validate_add_data("P3_PR", driSR.physdata.basic.p3.hr, 1, true);
+    validate_add_data("P3_Systolic", driSR.physdata.basic.p3.sys, 0.01, true);
+    validate_add_data("P3_Diastolic", driSR.physdata.basic.p3.dia, 0.01, true);
+    validate_add_data("P3_Mean", driSR.physdata.basic.p3.mean, 0.01, true);
+    validate_add_data("P4_PR", driSR.physdata.basic.p4.hr, 1, true);
+    validate_add_data("P4_Systolic", driSR.physdata.basic.p4.sys, 0.01, true);
+    validate_add_data("P4_Diastolic", driSR.physdata.basic.p4.dia, 0.01, true);
+    validate_add_data("P4_Mean", driSR.physdata.basic.p4.mean, 0.01, true);
+    validate_add_data("P5_PR", driSR.physdata.basic.p5.hr, 1, true);
+    validate_add_data("P5_Systolic", driSR.physdata.basic.p5.sys, 0.01, true);
+    validate_add_data("P5_Diastolic", driSR.physdata.basic.p5.dia, 0.01, true);
+    validate_add_data("P5_Mean", driSR.physdata.basic.p5.mean, 0.01, true);
+    validate_add_data("P6_PR", driSR.physdata.basic.p6.hr, 1, true);
+    validate_add_data("P6_Systolic", driSR.physdata.basic.p6.sys, 0.01, true);
+    validate_add_data("P6_Diastolic", driSR.physdata.basic.p6.dia, 0.01, true);
+    validate_add_data("P6_Mean", driSR.physdata.basic.p6.mean, 0.01, true);
 
 
-    validate_add_data("P1_HR", so17, 1, true);
-    validate_add_data("P1_Systolic", so18, 0.01, true);
-    validate_add_data("P1_Disatolic", so19, 0.01, true);
-    validate_add_data("P1_Mean", so20, 0.01, true);
-    validate_add_data("P2_HR", so21, 1, true);
-    validate_add_data("P2_Systolic", so22, 0.01, true);
-    validate_add_data("P2_Diastolic", so23, 0.01, true);
-    validate_add_data("P2_Mean", so24, 0.01, true);
+    //NIBP
+    validate_add_data("NIBP_Mean", driSR.physdata.basic.nibp.hr, 1, true);
+    validate_add_data("NIBP_Systolic", driSR.physdata.basic.nibp.sys, 0.01, true);
+    validate_add_data("NIBP_Diastolic", driSR.physdata.basic.nibp.dia, 0.01, true);
+    validate_add_data("NIBP_Mean", driSR.physdata.basic.nibp.mean, 0.01, true);
 
-    validate_add_data("PPeak", so25, 0.01, true);
-    validate_add_data("PPlat", so26, 0.01, true);
-    validate_add_data("TV_Exp", so27, 0.1, true);
-    validate_add_data("TV_Insp", so28, 0.1, true);
-    validate_add_data("PEEP", so29, 0.01, true);
-    validate_add_data("MV_Exp", so30, 0.01, false);
-    validate_add_data("Compliance", so31, 0.01, true);
-    validate_add_data("RR", so32, 1, true);
+    //SpO2
+    validate_add_data("SpO2_POS", driSR.physdata.basic.SpO2.SpO2, 0.01, true);
+    validate_add_data("SpO2_PR", driSR.physdata.basic.SpO2.pr,1,true);
 
+    //SvO2
+    validate_add_data("SvO2", driSR.physdata.basic.svo2.svo2,1,true);
+
+    //Temperature
+    validate_add_data("T1_Temp", driSR.physdata.basic.t1.temp, 0.01, false);
+    validate_add_data("T2_Temp", driSR.physdata.basic.t2.temp, 0.01, false);
+    validate_add_data("T3_Temp", driSR.physdata.basic.t3.temp, 0.01, false);
+    validate_add_data("T4_Temp", driSR.physdata.basic.t4.temp, 0.01, false);
+    validate_add_data("TBlood", driSR.physdata.basic.co_wedge.blood_temp, 0.01, false);
+
+    //Cardiac Output
+    validate_add_data("CO", driSR.physdata.basic.co_wedge.co, 1, false);
+    validate_add_data("REF", driSR.physdata.basic.co_wedge.ref, 0.01, false);
+
+
+    //Gas
+    validate_add_data("AA_ET", driSR.physdata.basic.aa.et, 0.01, false);
+    validate_add_data("AA_FI", driSR.physdata.basic.aa.fi, 0.01, false);
+    validate_add_data("AA_MAC_SUM", driSR.physdata.basic.aa.mac_sum, 0.01, false);
+    validate_add_data("O2_FI",  driSR.physdata.basic.o2.fi, 0.01, false);
+    validate_add_data("O2_ET", driSR.physdata.basic.o2.et, 0.01, false);
+    validate_add_data("N2O_FI",  driSR.physdata.basic.n2o.fi, 0.01, false);
+    validate_add_data("N2O_ET", driSR.physdata.basic.n2o.et, 0.01, false);
+    validate_add_data("CO2_RR", driSR.physdata.basic.co2.rr, 1, false);
+    validate_add_data("CO2_FI", driSR.physdata.basic.co2.fi, 0.01, false);
+    validate_add_data("CO2_ET", driSR.physdata.basic.co2.et, 0.01, false);
+    validate_add_data("AT_pre", driSR.physdata.basic.co2.amb_press, 0.1,true);
 
 }
 
-void GE_Monitor::save_ext1_and_ext2_record(datex::dri_phdb driSR){
-    short so1 = driSR.physdata.ext1.ecg12.stII;
-    short so2 = driSR.physdata.ext1.ecg12.stV5;
-    short so3 = driSR.physdata.ext1.ecg12.stAVL;
+void GE_Monitor::save_ext1_and_ext2_and_ext3_record(datex::dri_phdb driSR){
+    // ECG
+    validate_add_data("ST_II", driSR.physdata.ext1.arrh_ecg.pvc, 1,false);
+    validate_add_data("ST_I", driSR.physdata.ext1.ecg12.stI, 0.01,false);
+    validate_add_data("ST_II", driSR.physdata.ext1.ecg12.stII, 0.01,false);
+    validate_add_data("ST_III", driSR.physdata.ext1.ecg12.stIII, 0.01,false);
+    validate_add_data("ST_aVL", driSR.physdata.ext1.ecg12.stAVL, 0.01,false);
+    validate_add_data("ST_aVR", driSR.physdata.ext1.ecg12.stAVR, 0.01,false);
+    validate_add_data("ST_aVF", driSR.physdata.ext1.ecg12.stAVF, 0.01,false);
+    validate_add_data("ST_V1", driSR.physdata.ext1.ecg12.stV1, 0.01, false);
+    validate_add_data("ST_V2", driSR.physdata.ext1.ecg12.stV2, 0.01, false);
+    validate_add_data("ST_V3", driSR.physdata.ext1.ecg12.stV3, 0.01, false);
+    validate_add_data("ST_V4", driSR.physdata.ext1.ecg12.stV4, 0.01, false);
+    validate_add_data("ST_V5", driSR.physdata.ext1.ecg12.stV5, 0.01, false);
+    validate_add_data("ST_V6", driSR.physdata.ext1.ecg12.stV6, 0.01, false);
 
-    validate_add_data("ST_II", so1, 0.01,false);
-    validate_add_data("ST_V5", so2, 0.01, false);
-    validate_add_data("ST_aVL", so3, 0.01, false);
+    //Invasive blood pressure
+    validate_add_data("P7_PR", driSR.physdata.ext1.p7.hr, 1, true);
+    validate_add_data("P7_Systolic", driSR.physdata.ext1.p7.sys, 0.01, true);
+    validate_add_data("P7_Diastolic", driSR.physdata.ext1.p7.dia, 0.01, true);
+    validate_add_data("P7_Mean", driSR.physdata.ext1.p7.mean, 0.01, true);
+    validate_add_data("P8_PR", driSR.physdata.ext1.p8.hr, 1, true);
+    validate_add_data("P8_Systolic", driSR.physdata.ext1.p8.sys, 0.01, true);
+    validate_add_data("P8_Diastolic", driSR.physdata.ext1.p8.dia, 0.01, true);
+    validate_add_data("P8_Mean", driSR.physdata.ext1.p8.mean, 0.01, true);
+    validate_add_data("CCP", driSR.physdata.ext3.cpp.value, 0.01, false);
+    validate_add_data("SPV", driSR.physdata.ext3.delp.spv, 0.01, false);
+    validate_add_data("PPV", driSR.physdata.ext3.delp.ppv, 1, false);
 
-    short so4 = driSR.physdata.ext2.ent.eeg_ent;
-    short so5 = driSR.physdata.ext2.ent.emg_ent;
-    short so6 = driSR.physdata.ext2.ent.bsr_ent;
-    short so7 = driSR.physdata.ext2.eeg_bis.bis;
-    short so8 = driSR.physdata.ext2.eeg_bis.sr_val;
-    short so9 = driSR.physdata.ext2.eeg_bis.emg_val;
-    short so10 = driSR.physdata.ext2.eeg_bis.sqi_val;
+    //SpO2
+    validate_add_data("SpO2_PR2", driSR.physdata.ext1.SpO2_ch2.pr, 1, false);
+    validate_add_data("SpO2_POS2", driSR.physdata.ext1.SpO2_ch2.SpO2, 0.01, false);
 
-    validate_add_data("EEG_Entropy", so4,1,true);
-    validate_add_data("EMG_Entropy", so5, 1, true);
-    validate_add_data("BSR_Entropy", so6, 1, true);
-    validate_add_data("BIS", so7, 1, true);
-    validate_add_data("BIS_BSR", so8, 1, true);
-    validate_add_data("BIS_EMG", so9, 1, true);
-    validate_add_data("BIS_SQI", so10, 1, true);
+    //Cardiac Output
+    validate_add_data("CI", driSR.physdata.ext3.picco.ci, 1, false);
+    validate_add_data("CCO", driSR.physdata.ext3.picco.cco, 1, false);
+    validate_add_data("CCI", driSR.physdata.ext3.picco.cci, 1, false);
+    validate_add_data("SVR", driSR.physdata.ext3.picco.svr, 1, false);
+    validate_add_data("SVRI", driSR.physdata.ext3.picco.svri, 1, false);
+    validate_add_data("SV", driSR.physdata.ext3.picco.sv, 0.1, false);
+    validate_add_data("SVI", driSR.physdata.ext3.picco.svi, 0.1, false);
+    validate_add_data("SVV", driSR.physdata.ext3.picco.svv, 0.1, false);
+    validate_add_data("GEDV", driSR.physdata.ext3.picco.gedv, 1, false);
+    validate_add_data("GEDI", driSR.physdata.ext3.picco.gedi, 1, false);
+    validate_add_data("EVLW", driSR.physdata.ext3.picco.evlw, 1, false);
+    validate_add_data("ELWI", driSR.physdata.ext3.picco.elwi, 1, false);
+    validate_add_data("ITBV", driSR.physdata.ext3.picco.itbv, 1, false);
+    validate_add_data("ITBI", driSR.physdata.ext3.picco.itbi, 1, false);
+    validate_add_data("CPO", driSR.physdata.ext3.picco.cpo, 1, false);
+    validate_add_data("CPI", driSR.physdata.ext3.picco.cpi, 1, false);
+    validate_add_data("CFI", driSR.physdata.ext3.picco.cfi, 0.01, false);
+    validate_add_data("dPmax", driSR.physdata.ext3.picco.dpmax, 1, false);
+    validate_add_data("GEF", driSR.physdata.ext3.picco.gef, 0.1, false);
+    validate_add_data("PPV", driSR.physdata.ext3.picco.ppv, 0.1, false);
+    validate_add_data("PVPI", driSR.physdata.ext3.picco.pvpi, 0.01, false);
+    validate_add_data("Einj", driSR.physdata.ext3.picco.tinj, 1, false);
+
+    //Gas
+    validate_add_data("MACage", driSR.physdata.ext3.aa2.mac_age_sum, 0.01, true);
+    validate_add_data("EtBal",  driSR.physdata.ext3.bal.et, 0.01, true);
+
+    // gas exchange
+    validate_add_data("VO2", driSR.physdata.ext3.gassex.vo2, 1, true);
+    validate_add_data("VCO2", driSR.physdata.ext3.gassex.vco2, 1, true);
+    validate_add_data("EE", driSR.physdata.ext3.gassex.ee, 1, true);
+    validate_add_data("RQ", driSR.physdata.ext3.gassex.rq, 1, true);
+
+    //SPI
+    validate_add_data("SPI", driSR.physdata.ext2.spi.spiVal, 1, true);
+
+    //BIS
+    validate_add_data("BIS", driSR.physdata.ext2.eeg_bis.bis, 1, true);
+    validate_add_data("BIS_BSR", driSR.physdata.ext2.eeg_bis.sr_val, 1, true);
+    validate_add_data("BIS_EMG", driSR.physdata.ext2.eeg_bis.emg_val, 1, true);
+    validate_add_data("BIS_SQI", driSR.physdata.ext2.eeg_bis.sqi_val, 1, true);
 }
 
 std::string GE_Monitor::validate_wave_data(short value, double decimalshift, bool rounddata){
@@ -644,7 +708,7 @@ void GE_Monitor::validate_add_data(std::string physio_id, short value, double de
 
     struct NumericValResult NumVal;
 
-    NumVal.Timestamp = m_strTimestamp;
+    NumVal.Timestamp = machine_timestamp;
     NumVal.PhysioID = physio_id;
     NumVal.Value = valuestr;
     NumVal.DeviceID = m_DeviceID;

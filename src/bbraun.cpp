@@ -163,7 +163,19 @@ void Bbraun::read_packet_from_frame(){
         //for each block
         std::vector<std::string> block_list = split_string(text, RSCHAR);
         for(unsigned int j=0;j<block_list.size();j++){
-            std::vector<std::string> block_content = split_string(block_list[j], ',');
+
+            std::vector<std::string> block_content;
+            int n=0;
+            int pos=0;
+
+            while((pos = block_list[j].find(','))!=std::string::npos && n<3){
+                block_content.push_back(block_list[j].substr(0, pos));
+                block_list[j].erase(0, pos+1);
+                n=n+1;
+            }
+            block_content.push_back(block_list[j]);
+
+
             std::string parameter = block_content[2];
             std::string parametername;
             std::string parametertype = "GeneralParameters";
@@ -247,9 +259,16 @@ void Bbraun::save_num_value_list_row(std::string datatype){
     for(unsigned long i=0;i<numval_list.size();i++){
         if(numval_list[i].Parametertype == datatype){
             elementcount++;
+            int pos =0;
             if(numval_list[i].Value == "")
                 row.append("-");
-            else row.append(numval_list[i].Value);
+            else if((pos=numval_list[i].Value.find(','))!=std::string::npos)
+            {
+                numval_list[i].Value[pos]='.';
+                row.append(numval_list[i].Value);
+            }
+            else
+                row.append(numval_list[i].Value);
             row.append(",");
         }
     }

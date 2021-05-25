@@ -26,7 +26,8 @@ private:
     bool m_storestart = false;
     bool m_storeend = false;
     bool m_bitschiftnext = false;
-    std::string m_strTimestamp;
+    std::string machine_timestamp;
+    std::time_t pc_time;
     std::string m_DeviceID = "GE_Monitor";
     bool m_transmissionstart = true;
     QString pathcsv = QDir::currentPath()+"/../icu_devices/data/ge_monitor_b650/";
@@ -50,7 +51,7 @@ private:
     void save_basic_sub_record(datex::dri_phdb driSR);
     void write_to_rows();
     void write_to_file_header(QString filename);
-    void save_ext1_and_ext2_record(datex::dri_phdb driSR);
+    void save_ext1_and_ext2_and_ext3_record(datex::dri_phdb driSR);
     double get_wave_unit_shift(std::string physioId);
     void request_alarm_transfer();
     void save_wave_to_csv();
@@ -76,6 +77,7 @@ struct NumericValResult
 struct  WaveValResult
 {
     std::string Timestamp;
+    std::vector<unsigned long int> TimeList;
     std::string PhysioID;
     std::vector<short> Value;
     std::string DeviceID;

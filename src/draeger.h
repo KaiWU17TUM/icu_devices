@@ -18,6 +18,8 @@ typedef unsigned char byte;
 #define poll_request_stop_com 0x55
 #define poll_request_config_measured_data_codepage1  0x24
 #define poll_request_config_measured_data_codepage2  0x2B
+#define poll_request_config_realtime_data  0x54
+
 #define poll_request_current_date_time  0x28
 #define poll_request_device_settings  0x29
 #define poll_request_text_messages  0x2a
