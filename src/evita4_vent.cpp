@@ -11,17 +11,20 @@ Evita4_vent::Evita4_vent(){
     QObject::connect(local_serial_port->serial, SIGNAL(readyRead()), this, SLOT(process_buffer()));
 
 
+    //prepare transmission request
     realtime_data_list.push_back(0x00);
     realtime_data_list.push_back(0x06);
-    /*
-    sync_cmd.push_back(0x1b);
-    sync_cmd.push_back(0x54);
+
+    //realtime_transmission_request.push_back(0x1b);
+    realtime_transmission_request.push_back(0x54);
     for(int i=0;i<realtime_data_list.size();i++){
-        sync_cmd.push_back(0x30);
-        sync_cmd.push_back(realtime_data_list[i]+0x30);
-        sync_cmd.push_back(0x30);
-        sync_cmd.push_back(0x31);
-    }*/
+        realtime_transmission_request.push_back(0x30);
+        realtime_transmission_request.push_back(realtime_data_list[i]+0x30);
+        realtime_transmission_request.push_back(0x30);
+        realtime_transmission_request.push_back(0x31);
+    }
+
+    //prepare enable datastream request
     sync_cmd.push_back(0xd0);
     sync_cmd.push_back(0xc1);
     sync_cmd.push_back(0xc3);
@@ -29,12 +32,14 @@ Evita4_vent::Evita4_vent(){
     sync_cmd.push_back(0xc0);
 
 
-
     timer_cp1 = new QTimer();
     connect(timer_cp1, SIGNAL(timeout()), this, SLOT(request_realtime_config()));
 
     timer_cp2 = new QTimer();
     connect(timer_cp2, SIGNAL(timeout()), this, SLOT(request_alarmCP1()));
+
+    timer_cp3 = new QTimer();
+    connect(timer_cp3, SIGNAL(timeout()), this, SLOT(request_alarm_high_limit()));
 }
 
 void Evita4_vent::start(){
@@ -43,14 +48,13 @@ void Evita4_vent::start(){
         try_to_open_port();
 
         std::cout<<"Initialize the connection with Evita 4"<<std::endl;
-        request_icc();
-
-        //request_realtime_config();
+        send_request("icc");
 
         timer_cp1->start(5000);
 
         //timer_cp2->start(5000);
-        //request_realtime_config();
+        //timer_cp3->start(1000);
+
 
     }  catch (const std::exception& e) {
         qDebug()<<"Error opening/writing to serial port "<<e.what();
@@ -92,54 +96,54 @@ void Evita4_vent::create_frame_list_from_byte(byte b){
         b_list.push_back(b);
     }
     else{
-    switch (b)
-    {
-        case SOHCHAR:
-            m_storestart1 = true;
-            m_storeend = false;
-            b_list.push_back(b);
-            break;
-        case ESCCHAR:
-            if (m_storestart1 != true)
-            {
-                m_storestart2 = true;
-                m_storeend = false;
-            }
-            b_list.push_back(b);
-            break;
-        case CRCHAR:
-            m_storestart1 = false;
-            m_storestart2 = false;
-            m_storeend = true;
-            break;
-        default:
-
-            if ((m_storestart1 == true && m_storeend == false) || (m_storestart2 == true && m_storeend == false))
-                b_list.push_back(b);
-            break;
-    }
-
-    if ((m_storestart1 == false && m_storeend == true) || (m_storestart2 == false && m_storeend == true))
-    {
-        int framelen = b_list.size();
-        std::vector<byte> payload;
-        if (framelen != 0)
+        switch (b)
         {
-            for(unsigned long i=0;i<framelen-2;i++){
-                payload.push_back(b_list[i]);
-            }
-            add_checksum(payload);
-            if(payload[framelen-3]==b_list[framelen-3] and payload[framelen-2]==b_list[framelen-2]){
-                qDebug()<<"Checksum Correct!";
-                frame_buffer.push_back(payload);
-            }else{
-                qDebug()<<"Checksum Error!";
-            }
-            b_list.clear();
-            m_storeend = false;
+            case SOHCHAR:
+                m_storestart1 = true;
+                m_storeend = false;
+                b_list.push_back(b);
+                break;
+            case ESCCHAR:
+                if (m_storestart1 != true)
+                {
+                    m_storestart2 = true;
+                    m_storeend = false;
+                }
+                b_list.push_back(b);
+                break;
+            case CRCHAR:
+                m_storestart1 = false;
+                m_storestart2 = false;
+                m_storeend = true;
+                break;
+            default:
 
+                if ((m_storestart1 == true && m_storeend == false) || (m_storestart2 == true && m_storeend == false))
+                    b_list.push_back(b);
+                break;
         }
-    }
+
+        if ((m_storestart1 == false && m_storeend == true) || (m_storestart2 == false && m_storeend == true))
+        {
+            int framelen = b_list.size();
+            std::vector<byte> payload;
+            if (framelen != 0)
+            {
+                for(unsigned long i=0;i<framelen-2;i++){
+                    payload.push_back(b_list[i]);
+                }
+                add_checksum(payload);
+                if(payload[framelen-3]==b_list[framelen-3] and payload[framelen-2]==b_list[framelen-2]){
+                    qDebug()<<"Checksum Correct!";
+                    frame_buffer.push_back(payload);
+                }else{
+                    qDebug()<<"Checksum Error!";
+                }
+                b_list.clear();
+                m_storeend = false;
+
+            }
+        }
     }
 }
 
@@ -154,87 +158,107 @@ void Evita4_vent::read_packet_from_frame(){
         byte command_type = frame_buffer[i][1];
         std::vector<byte> cmd;
         switch (response_type) {
-        case 0x1b: // command received
-            if(command_type=='Q'){ // ICC
-                cmd = {0x51};
-                qDebug()<<"get ICC command";
-                command_echo_response(cmd);
-                //request_realtime_config();
-                break;
-            }
-            else if(command_type=='R'){ // Device id
-                cmd = {0x52};
-                qDebug()<<"get Device id command";
-                command_echo_response(cmd); //return empty device identification
-                break;
-            }
+            case 0x1b: // command received
+                if(command_type=='Q'){ // ICC
+                    cmd = {0x51};
+                    qDebug()<<"get ICC command";
+                    command_echo_response(cmd);
+                    //request_realtime_config();
+                    break;
+                }
+                else if(command_type=='R'){ // Device id
+                    cmd = {0x52};
+                    qDebug()<<"get Device id command";
+                    command_echo_response(cmd); //return empty device identification
+                    break;
+                }
 
 
-        case 0x01: // response received
-            if(command_type=='Q')// ICC
-                break;
-            else if(command_type=='R'){ // Device id
-                break;
-            }
-            else if(command_type==0x24){ // Response cp1
-                parse_data_response_measured(frame_buffer[i], poll_request_config_measured_data_codepage1);
-                qDebug()<<"get measuremnt cp 1";
-                break;
-            }
-            else if(command_type==0x25){ // Response low alarm limits
-                parse_data_response_measured(frame_buffer[i], poll_request_low_alarm_limits);
-                qDebug()<<"get low alarm limits";
-                break;
-            }
-            else if(command_type==0x26){ // Response high alarm limits
-                parse_data_response_measured(frame_buffer[i], poll_request_high_alarm_limits);
-                qDebug()<<"get high alarm limits";
-                break;
-            }
-            else if(command_type==0x27){ // Response alarm cp1
-                //parse_data_response_measured(frame_buffer[i], poll_request_high_alarm_limits);
-                parse_alarm(frame_buffer[i]);
-                qDebug()<<"get  alarm CP1";
-                break;
-            }
-            else if(command_type==0x23){ // Response alarm cp2
-                //parse_data_response_measured(frame_buffer[i], poll_request_high_alarm_limits);
-                parse_alarm(frame_buffer[i]);
-                qDebug()<<"get alarm CP2";
-                break;
-            }
+            case 0x01: // response received
+                if(command_type=='Q'){// ICC-Response
+                    qDebug()<<"receive ICC-Response";
+                    free_flag=true;
+                    break;
+                }
+                else if(command_type=='R'){ // Device id
+                    qDebug()<<"receive Device_ID-Response";
+                    free_flag=true;
+                    break;
+                }
+                else if(command_type=='0'){ //Nop
+                    qDebug()<<"receive Nop-Response";
+                    free_flag=true;
+                    break;
+                }
 
+                else if(command_type==0x24){ // Response cp1
+                    parse_data_response_measured(frame_buffer[i], poll_request_config_measured_data_codepage1);
+                    qDebug()<<"get measuremnt cp 1";
+                    free_flag=true;
+                    break;
+                }
 
-            else if(command_type==0x53){ // Response realtime configuration
-                parse_realtime_data_configs(frame_buffer[i]);
-                request_realtime_data();
-                break;
-            }
-            else if(command_type==0x54){ // Response realtime data
-                qDebug()<<"get realtime data command";
-                request_sync();
-                sync_data = true;
-                break;
-            }
+                else if(command_type==0x25){ // Response low alarm limits
+                    parse_data_response_measured(frame_buffer[i], poll_request_low_alarm_limits);
+                    qDebug()<<"get low alarm limits";
+                    free_flag=true;
+                    break;
+                }
 
-            else if(command_type==')'){ // Device setting
-                parse_data_device_settings(frame_buffer[i]);
-                 qDebug()<<"get device setting 1";
-                break;
-            }
-            else if(command_type=='*'){ // TextMessage
-                parse_data_text_settings(frame_buffer[i]);
-                break;
-            }
-            else if(command_type=='0'){ //Nop
-                break;
-            }
+                else if(command_type==0x26){ // Response high alarm limits
+                    parse_data_response_measured(frame_buffer[i], poll_request_high_alarm_limits);
+                    qDebug()<<"get high alarm limits";
+                    free_flag=true;
+                    break;
+                }
+
+                else if(command_type==0x27){ // Response alarm cp1
+                    parse_alarm(frame_buffer[i]);
+                    qDebug()<<"get  alarm CP1";
+                    free_flag=true;
+                    break;
+                }
+
+                else if(command_type==0x23){ // Response alarm cp2
+                    parse_alarm(frame_buffer[i]);
+                    qDebug()<<"get alarm CP2";
+                    free_flag=true;
+                    break;
+                }
+
+                else if(command_type==')'){ // Device setting
+                    parse_data_device_settings(frame_buffer[i]);
+                     qDebug()<<"get device setting";
+                     free_flag=true;
+                    break;
+                }
+
+                else if(command_type=='*'){ // TextMessage
+                    parse_data_text_settings(frame_buffer[i]);
+                    qDebug()<<"get TextMessage";
+                    free_flag=true;
+                    break;
+                }
+
+                else if(command_type==0x53){ // Response realtime configuration
+                    parse_realtime_data_configs(frame_buffer[i]);
+                    qDebug()<<"get Response realtime configuration";
+                    free_flag=true;
+                    send_request("realtime_data");
+                    break;
+                }
+
+                else if(command_type==0x54){ // Response realtime data
+                    qDebug()<<"get realtime data command, enable datastream";
+                    sync_data = true;
+                    send_request("sync");
+                    break;
+                }
 
         default:
             if((response_type & 0xf0) == 0xd0){
                 qDebug()<<"get realtime data SYNC";
                 parse_realtime_data(frame_buffer[i]);
-                //TODO:parse data sequence
             }
             break;
         }
@@ -439,7 +463,7 @@ void Evita4_vent::parse_realtime_data_configs(std::vector<byte> &packetbuffer){
 
             int interval = 0;
             for(int n=0;n<Interval.length();n++){
-                if(Interval[Interval.length()-1-n]==' ')
+                if(Interval[Interval.length()-1-n]==0x20)
                     break;
                 else{
                     interval+= pow(10,n)*(Interval[Interval.length()-1-n]-0x30);
@@ -449,21 +473,25 @@ void Evita4_vent::parse_realtime_data_configs(std::vector<byte> &packetbuffer){
 
             int minimal_v = 0;
             for(int n=0;n<MinimalV.length();n++){
-                if(MinimalV[MinimalV.length()-1-n]==' ')
+                if(MinimalV[MinimalV.length()-1-n]==0x20 || MinimalV[MinimalV.length()-1-n]==0x2D)
                     break;
                 else{
                     minimal_v+= pow(10,n)*(MinimalV[MinimalV.length()-1-n]-0x30);
                 }
+                if(MinimalV[0]==0x2D)
+                    minimal_v=-1*minimal_v;
             }
             local_cfg.minimal_val = minimal_v;
 
             int maximal_v = 0;
             for(int n=0;n<MaximalV.length();n++){
-                if(MaximalV[MaximalV.length()-1-n]==' ')
+                if(MaximalV[MaximalV.length()-1-n]==0x20 || MaximalV[MaximalV.length()-1-n]==0x2D)
                     break;
                 else{
                     maximal_v+= pow(10,n)*(MaximalV[MaximalV.length()-1-n]-0x30);
                 }
+                if(MaximalV[0]==0x2D)
+                    maximal_v = -1*maximal_v;
             }
             local_cfg.maximal_val = maximal_v;
 
@@ -472,7 +500,7 @@ void Evita4_vent::parse_realtime_data_configs(std::vector<byte> &packetbuffer){
                 if(MaxBin[MaxBin.length()-1-n]==' ')
                     break;
                 else{
-                    max_bin+= pow(10,n)*(MaxBin[MaxBin.length()-1-n]-0x30);
+                    max_bin+= pow(16,n)*(MaxBin[MaxBin.length()-1-n]-0x30);
                 }
             }
             local_cfg.max_bin = max_bin;
@@ -502,18 +530,19 @@ void Evita4_vent::parse_realtime_data(std::vector<byte> &packetbuffer){
                 {
                     byte datacode = realtime_data_list[value_index];
                     physio_id = RealtimeConfigs.find(datacode)->second;
-                    byte front_num = 0x1f & DataValue[0];
-                    byte back_num = 0x1f & DataValue[1];
+                    byte front_num = 0x3f & DataValue[0];
+                    byte back_num = 0x3f & DataValue[1];
                     int value = int(front_num)+int(back_num)*(2^6);
+                    float value2=0;
 
-                    for(int j=0;j<cfg_list.length();j++){
+                    for(int j=0;j<cfg_list.size();j++){
                         if(cfg_list[j].id == physio_id){
+                            value2 = cfg_list[j].minimal_val+value*(cfg_list[j].maximal_val-cfg_list[j].minimal_val)/float(cfg_list[j].max_bin);
                             break;
                         }
                     }
-                    RealtimeCfg cfg = cfg_list[j];
-                    value = cfg.minimal_val+value*(cfg.maximal_val-cfg.minimal_val)/(cfg.interval);
-                    data_value = std::to_string(value);
+
+                    data_value = std::to_string(value2);
 
                     NumVal local_NumVal;
                     local_NumVal.Timestamp = pkt_timestamp;
@@ -586,7 +615,7 @@ void Evita4_vent::save_num_val_list_rows(std::string datatype){
             myfile.write((char*)&row[0], row.length());
 
         }
-        qDebug()<<"write data to file";
+        //qDebug()<<"write data to file";
     }
 }
 void Evita4_vent::save_alarm_list_rows(std::string datatype){

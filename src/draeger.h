@@ -30,7 +30,7 @@ typedef unsigned char byte;
 #define poll_request_device_settings  0x29
 #define poll_request_text_messages  0x2a
 
-const std::vector<unsigned char> realtime_transmission_cmd {0x54, 0x30, 0x30, 0x30, 0x32, 0x30, 0x36, 0x30,0x33};
+//const std::vector<unsigned char> realtime_transmission_request {0x54, 0x30, 0x30, 0x30, 0x32, 0x30, 0x36, 0x30,0x33};
 
 struct NumVal{
     std::string Timestamp;
