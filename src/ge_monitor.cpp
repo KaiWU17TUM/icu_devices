@@ -356,7 +356,7 @@ void GE_Monitor::read_packet_from_frame(){
                 std::vector<unsigned long int> TimeList;
                 for(int n = 0; n < buflen; n += 2){
                     waveValList.push_back((buffer[n+1])*256+(buffer[n]));
-                    TimeList.push_back((unsigned long int)pc_time*1000+1000/3);
+                    TimeList.push_back((unsigned long int)pc_time*1000+10*(n/2)/3);
                 }
 
                 WaveValResult wave_val;
@@ -513,6 +513,8 @@ void GE_Monitor::save_wave_to_csv(){
             row.append( m_WaveValList[i].Timestamp);
             row.append(",");
             row.append(wave_val);
+            row.append(",");
+            row.append(std::to_string(m_WaveValList[i].TimeList[j]));
             row.append(",\n");
         }
 
@@ -608,7 +610,7 @@ void GE_Monitor::save_basic_sub_record(datex::dri_phdb driSR){
 
 void GE_Monitor::save_ext1_and_ext2_and_ext3_record(datex::dri_phdb driSR){
     // ECG
-    validate_add_data("ST_II", driSR.physdata.ext1.arrh_ecg.pvc, 1,false);
+    validate_add_data("PVC", driSR.physdata.ext1.arrh_ecg.pvc, 1,false);
     validate_add_data("ST_I", driSR.physdata.ext1.ecg12.stI, 0.01,false);
     validate_add_data("ST_II", driSR.physdata.ext1.ecg12.stII, 0.01,false);
     validate_add_data("ST_III", driSR.physdata.ext1.ecg12.stIII, 0.01,false);

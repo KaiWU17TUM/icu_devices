@@ -2,7 +2,7 @@
 
 Evita4_vent::Evita4_vent(){
     local_serial_port = new MySerialPort();
-    local_serial_port->serial->setPortName("/dev/ttyUSB3");
+    local_serial_port->serial->setPortName("/dev/ttyUSB4");
     local_serial_port->serial->setBaudRate(QSerialPort::Baud19200);
     local_serial_port->serial->setDataBits(QSerialPort::Data8);
     local_serial_port->serial->setParity(QSerialPort::EvenParity);
@@ -10,8 +10,31 @@ Evita4_vent::Evita4_vent(){
     local_serial_port->serial->setFlowControl(QSerialPort::NoFlowControl);
     QObject::connect(local_serial_port->serial, SIGNAL(readyRead()), this, SLOT(process_buffer()));
 
+
+    realtime_data_list.push_back(0x00);
+    realtime_data_list.push_back(0x06);
+    /*
+    sync_cmd.push_back(0x1b);
+    sync_cmd.push_back(0x54);
+    for(int i=0;i<realtime_data_list.size();i++){
+        sync_cmd.push_back(0x30);
+        sync_cmd.push_back(realtime_data_list[i]+0x30);
+        sync_cmd.push_back(0x30);
+        sync_cmd.push_back(0x31);
+    }*/
+    sync_cmd.push_back(0xd0);
+    sync_cmd.push_back(0xc1);
+    sync_cmd.push_back(0xc3);
+    sync_cmd.push_back(0xc0);
+    sync_cmd.push_back(0xc0);
+
+
+
     timer_cp1 = new QTimer();
-    connect(timer_cp1, SIGNAL(timeout()), this, SLOT(request_measurement_cp1()));
+    connect(timer_cp1, SIGNAL(timeout()), this, SLOT(request_realtime_config()));
+
+    timer_cp2 = new QTimer();
+    connect(timer_cp2, SIGNAL(timeout()), this, SLOT(request_alarmCP1()));
 }
 
 void Evita4_vent::start(){
@@ -22,7 +45,12 @@ void Evita4_vent::start(){
         std::cout<<"Initialize the connection with Evita 4"<<std::endl;
         request_icc();
 
+        //request_realtime_config();
+
         timer_cp1->start(5000);
+
+        //timer_cp2->start(5000);
+        //request_realtime_config();
 
     }  catch (const std::exception& e) {
         qDebug()<<"Error opening/writing to serial port "<<e.what();
@@ -48,6 +76,22 @@ void Evita4_vent::process_buffer(){
     }
 }
 void Evita4_vent::create_frame_list_from_byte(byte b){
+    if(sync_data==true){
+        if((b & 0xf0)==0xd0)
+            new_data=true;
+        else
+            new_data=false;
+        if(b_list.size()>0 && new_data==true){
+            std::vector<byte> payload;
+            for(unsigned long i=0;i<b_list.size();i++){
+                    payload.push_back(b_list[i]);
+            }
+            frame_buffer.push_back(payload);
+            b_list.clear();
+        }
+        b_list.push_back(b);
+    }
+    else{
     switch (b)
     {
         case SOHCHAR:
@@ -69,6 +113,7 @@ void Evita4_vent::create_frame_list_from_byte(byte b){
             m_storeend = true;
             break;
         default:
+
             if ((m_storestart1 == true && m_storeend == false) || (m_storestart2 == true && m_storeend == false))
                 b_list.push_back(b);
             break;
@@ -84,8 +129,8 @@ void Evita4_vent::create_frame_list_from_byte(byte b){
                 payload.push_back(b_list[i]);
             }
             add_checksum(payload);
-            if(payload[framelen-1]==b_list[framelen-1] and payload[framelen-2]==b_list[framelen-2]){
-                 qDebug()<<"Checksum Correct!";
+            if(payload[framelen-3]==b_list[framelen-3] and payload[framelen-2]==b_list[framelen-2]){
+                qDebug()<<"Checksum Correct!";
                 frame_buffer.push_back(payload);
             }else{
                 qDebug()<<"Checksum Error!";
@@ -94,9 +139,8 @@ void Evita4_vent::create_frame_list_from_byte(byte b){
             m_storeend = false;
 
         }
-
     }
-
+    }
 }
 
 
@@ -115,6 +159,7 @@ void Evita4_vent::read_packet_from_frame(){
                 cmd = {0x51};
                 qDebug()<<"get ICC command";
                 command_echo_response(cmd);
+                //request_realtime_config();
                 break;
             }
             else if(command_type=='R'){ // Device id
@@ -131,15 +176,47 @@ void Evita4_vent::read_packet_from_frame(){
             else if(command_type=='R'){ // Device id
                 break;
             }
-            else if(command_type=='$'){ // Response cp1
+            else if(command_type==0x24){ // Response cp1
                 parse_data_response_measured(frame_buffer[i], poll_request_config_measured_data_codepage1);
                 qDebug()<<"get measuremnt cp 1";
                 break;
             }
-            else if(command_type=='+'){ // Response cp2
-                parse_data_response_measured(frame_buffer[i], poll_request_config_measured_data_codepage2);
+            else if(command_type==0x25){ // Response low alarm limits
+                parse_data_response_measured(frame_buffer[i], poll_request_low_alarm_limits);
+                qDebug()<<"get low alarm limits";
                 break;
             }
+            else if(command_type==0x26){ // Response high alarm limits
+                parse_data_response_measured(frame_buffer[i], poll_request_high_alarm_limits);
+                qDebug()<<"get high alarm limits";
+                break;
+            }
+            else if(command_type==0x27){ // Response alarm cp1
+                //parse_data_response_measured(frame_buffer[i], poll_request_high_alarm_limits);
+                parse_alarm(frame_buffer[i]);
+                qDebug()<<"get  alarm CP1";
+                break;
+            }
+            else if(command_type==0x23){ // Response alarm cp2
+                //parse_data_response_measured(frame_buffer[i], poll_request_high_alarm_limits);
+                parse_alarm(frame_buffer[i]);
+                qDebug()<<"get alarm CP2";
+                break;
+            }
+
+
+            else if(command_type==0x53){ // Response realtime configuration
+                parse_realtime_data_configs(frame_buffer[i]);
+                request_realtime_data();
+                break;
+            }
+            else if(command_type==0x54){ // Response realtime data
+                qDebug()<<"get realtime data command";
+                request_sync();
+                sync_data = true;
+                break;
+            }
+
             else if(command_type==')'){ // Device setting
                 parse_data_device_settings(frame_buffer[i]);
                  qDebug()<<"get device setting 1";
@@ -154,9 +231,12 @@ void Evita4_vent::read_packet_from_frame(){
             }
 
         default:
-
+            if((response_type & 0xf0) == 0xd0){
+                qDebug()<<"get realtime data SYNC";
+                parse_realtime_data(frame_buffer[i]);
+                //TODO:parse data sequence
+            }
             break;
-
         }
 
     }
@@ -214,7 +294,7 @@ void Evita4_vent::parse_data_device_settings(std::vector<byte> &packetbuffer){
         }
         int responselen = response.size();
 
-        for(int i=0;i<responselen;i=i+6){
+        for(int i=0;i<responselen;i=i+7){
             std::vector<byte> DataCode(response.begin()+i,response.begin()+2+i);
             std::string DataValue(response.begin()+2+i,response.begin()+2+5+i);
             byte datacode = 0x0;
@@ -270,8 +350,11 @@ void Evita4_vent::parse_data_response_measured(std::vector<byte> &packetbuffer, 
             if(type == poll_request_config_measured_data_codepage1){
                 physio_id = MeasurementCP1.find(datacode)->second;
             }
-            else if(type==poll_request_config_measured_data_codepage2){
-                physio_id = MeasurementCP2.find(datacode)->second;
+            else if(type==poll_request_low_alarm_limits){
+                physio_id = LowLimits.find(datacode)->second;
+            }
+            else if(type==poll_request_high_alarm_limits){
+                physio_id = HighLimits.find(datacode)->second;
             }
 
             NumVal local_NumVal;
@@ -281,20 +364,174 @@ void Evita4_vent::parse_data_response_measured(std::vector<byte> &packetbuffer, 
 
             numval_list.push_back(local_NumVal);
             header_list.push_back(physio_id);
-
         }
+
         if(type == poll_request_config_measured_data_codepage1){
             save_num_val_list_rows("MeasuredCP1");
         }
-        else if(type==poll_request_config_measured_data_codepage2){
-            save_num_val_list_rows("MeasuredCP2");
+        else if(type==poll_request_low_alarm_limits){
+            save_num_val_list_rows("LowLimits");
+        }
+        else if(type==poll_request_high_alarm_limits){
+            save_num_val_list_rows("HighLimits");
         }
         numval_list.clear();
     }
 }
 
+void Evita4_vent::parse_alarm(std::vector<byte> &packetbuffer){
+    unsigned long framelen = packetbuffer.size();
+    if (framelen != 0)
+    {
+        std::vector<byte> response;
+        for(unsigned long i=2;i<framelen-2;i++){
+            response.push_back(packetbuffer[i]);
+        }
+        int responselen = response.size();
 
+        for(int i=0;i<responselen;i=i+15){
+            byte priority = response[i+1];
+            std::string AlarmCode(response.begin()+i+1,response.begin()+3+i);
+            std::string AlarmPhase(response.begin()+3+i,response.begin()+15+i);
 
+            AlarmInfo local_alarm;
+            local_alarm.Timestamp = pkt_timestamp;
+            local_alarm.AlarmCode = AlarmCode;
+            local_alarm.AlarmPhrase =AlarmPhase;
+            local_alarm.Priority = std::to_string(priority);
+
+            alarm_list.push_back(local_alarm);
+        }
+        save_alarm_list_rows("Alarm");
+        alarm_list.clear();
+    }
+}
+void Evita4_vent::parse_realtime_data_configs(std::vector<byte> &packetbuffer){
+    unsigned long framelen = packetbuffer.size();
+    if (framelen != 0)
+    {
+        std::vector<byte> response;
+        for(unsigned long i=2;i<framelen-2;i++){
+            response.push_back(packetbuffer[i]);
+        }
+        int responselen = response.size();
+
+        for(int i=0;i<responselen;i=i+23){
+            std::vector<byte> DataCode(response.begin()+i,response.begin()+2+i);
+            std::string Interval(response.begin()+2+i,response.begin()+10+i);
+            std::string MinimalV(response.begin()+10+i,response.begin()+15+i);
+            std::string MaximalV(response.begin()+15+i,response.begin()+20+i);
+            std::string MaxBin(response.begin()+20+i,response.begin()+23+i);
+            byte datacode = 0x0;
+            if(DataCode[0]<=0x39)
+                datacode+=16*(DataCode[0]-0x30);
+            else
+                datacode+=16*(DataCode[0]-0x41+10);
+            if(DataCode[1]<=0x39)
+                datacode+=1*(DataCode[1]-0x30);
+            else
+                datacode+=1*(DataCode[1]-0x41+10);
+
+            std::string physio_id;
+            physio_id = RealtimeConfigs.find(datacode)->second;
+            RealtimeCfg local_cfg;
+            local_cfg.id = physio_id;
+
+            int interval = 0;
+            for(int n=0;n<Interval.length();n++){
+                if(Interval[Interval.length()-1-n]==' ')
+                    break;
+                else{
+                    interval+= pow(10,n)*(Interval[Interval.length()-1-n]-0x30);
+                }
+            }
+            local_cfg.interval = interval;
+
+            int minimal_v = 0;
+            for(int n=0;n<MinimalV.length();n++){
+                if(MinimalV[MinimalV.length()-1-n]==' ')
+                    break;
+                else{
+                    minimal_v+= pow(10,n)*(MinimalV[MinimalV.length()-1-n]-0x30);
+                }
+            }
+            local_cfg.minimal_val = minimal_v;
+
+            int maximal_v = 0;
+            for(int n=0;n<MaximalV.length();n++){
+                if(MaximalV[MaximalV.length()-1-n]==' ')
+                    break;
+                else{
+                    maximal_v+= pow(10,n)*(MaximalV[MaximalV.length()-1-n]-0x30);
+                }
+            }
+            local_cfg.maximal_val = maximal_v;
+
+            int max_bin = 0;
+            for(int n=0;n<MaxBin.length();n++){
+                if(MaxBin[MaxBin.length()-1-n]==' ')
+                    break;
+                else{
+                    max_bin+= pow(10,n)*(MaxBin[MaxBin.length()-1-n]-0x30);
+                }
+            }
+            local_cfg.max_bin = max_bin;
+            cfg_list.push_back(local_cfg);
+        }
+    }
+}
+
+void Evita4_vent::parse_realtime_data(std::vector<byte> &packetbuffer){
+    unsigned long framelen = packetbuffer.size();
+    if (framelen != 0)
+    {
+        std::vector<byte> response;
+        byte sync_byte = packetbuffer[0];
+        for(unsigned long i=1;i<framelen-1;i++){
+            response.push_back(packetbuffer[i]);
+        }
+        int responselen = response.size();
+        int value_index = 0;
+        std::string physio_id;
+        std::string data_value;
+
+        for(int i=0;i<responselen;i=i+2){
+            std::vector<byte> DataValue(response.begin()+i,response.begin()+2+i);
+            if((DataValue[0] & 0xc0) == 0x80){ // sync data
+                while(sync_byte&(0x01<<value_index)==1)
+                {
+                    byte datacode = realtime_data_list[value_index];
+                    physio_id = RealtimeConfigs.find(datacode)->second;
+                    byte front_num = 0x1f & DataValue[0];
+                    byte back_num = 0x1f & DataValue[1];
+                    int value = int(front_num)+int(back_num)*(2^6);
+
+                    for(int j=0;j<cfg_list.length();j++){
+                        if(cfg_list[j].id == physio_id){
+                            break;
+                        }
+                    }
+                    RealtimeCfg cfg = cfg_list[j];
+                    value = cfg.minimal_val+value*(cfg.maximal_val-cfg.minimal_val)/(cfg.interval);
+                    data_value = std::to_string(value);
+
+                    NumVal local_NumVal;
+                    local_NumVal.Timestamp = pkt_timestamp;
+                    local_NumVal.PhysioID = physio_id;
+                    local_NumVal.Value =data_value;
+
+                    numval_list.push_back(local_NumVal);
+                    //header_list.push_back(physio_id);
+                    value_index=value_index+1;}
+            }
+            else if(DataValue[0] & 0xc0 == 0xc0){// sync command
+                //TODO::deal with sync command
+            }
+        }
+        save_num_val_list_rows("RealtimeData");
+        numval_list.clear();
+    }
+}
 void Evita4_vent::write_buffer(std::vector<byte> cmd){
     std::vector<byte> temptxbufferlist;
 
@@ -352,6 +589,38 @@ void Evita4_vent::save_num_val_list_rows(std::string datatype){
         qDebug()<<"write data to file";
     }
 }
+void Evita4_vent::save_alarm_list_rows(std::string datatype){
+    if(alarm_list.size()!=0){
+        std::time_t result = std::time(nullptr);
+        std::string pkt_timestamp =std::asctime(std::localtime(&result));
+        pkt_timestamp.erase(8,11);
+
+        QString filename = pathcsv + QString::fromStdString(pkt_timestamp) + QString::fromStdString(datatype)+".csv";
+
+        std::string row;
+        //row+=(alarm_list[0].Timestamp);
+        //row.append(",");
+
+        for(int i=0;i<alarm_list.size();i++){
+            row+=(alarm_list[i].Timestamp);
+            row.append(",");
+            row+=(alarm_list[i].AlarmCode);
+            row.append(",");
+            row+=(alarm_list[i].Priority);
+            row.append(",");
+            row+=(alarm_list[i].AlarmPhrase);
+            row.append(",\n");
+        }
+        row.append("\n");
+        QFile myfile(filename);
+        if (myfile.open(QIODevice::Append)) {
+            myfile.write((char*)&row[0], row.length());
+
+        }
+        qDebug()<<"write alarm to file";
+    }
+}
+
 
 void Evita4_vent::write_num_header_list(std::string datatype, QString filename){
     if(write_header_for_data_type(datatype)){
@@ -384,7 +653,7 @@ bool Evita4_vent::write_header_for_data_type(std::string datatype)
         }
         else writeheader = false;
     }
-    else if(datatype == "MeasuredCP2"){
+    else if(datatype == "DeviceSettings"){
         if (m_transmissionstart2)
         {
             m_transmissionstart2 = false;
@@ -392,7 +661,7 @@ bool Evita4_vent::write_header_for_data_type(std::string datatype)
         }
         else writeheader = false;
     }
-    else if(datatype == "DeviceSettings"){
+    else if(datatype == "TextMessages"){
         if (m_transmissionstart3)
         {
             m_transmissionstart3 = false;
@@ -400,10 +669,18 @@ bool Evita4_vent::write_header_for_data_type(std::string datatype)
         }
         else writeheader = false;
     }
-    else if(datatype == "TextMessages"){
+    else if(datatype == "AlarmLow"){
         if (m_transmissionstart4)
         {
             m_transmissionstart4 = false;
+
+        }
+        else writeheader = false;
+    }
+    else if(datatype == "AlarmHigh"){
+        if (m_transmissionstart5)
+        {
+            m_transmissionstart5 = false;
 
         }
         else writeheader = false;

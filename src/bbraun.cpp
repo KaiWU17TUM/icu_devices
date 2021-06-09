@@ -27,7 +27,7 @@ void Bbraun::start(){
         std::cout<<"Initialize the connection with "<<std::endl;
         request_initialize_connection();
 
-        timer_cp1->start(10000);
+        timer_cp1->start(1000);
 
     }  catch (const std::exception& e) {
         qDebug()<<"Error opening/writing to serial port "<<e.what();
