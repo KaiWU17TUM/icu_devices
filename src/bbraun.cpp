@@ -8,7 +8,7 @@ Bbraun::Bbraun()
 
     local_serial_port = new MySerialPort();
     local_serial_port->serial->setPortName("/dev/ttyUSB2");
-    local_serial_port->serial->setBaudRate(QSerialPort::Baud9600);
+    local_serial_port->serial->setBaudRate(QSerialPort::Baud19200);
     local_serial_port->serial->setDataBits(QSerialPort::Data8);
     local_serial_port->serial->setParity(QSerialPort::NoParity);
     local_serial_port->serial->setStopBits(QSerialPort::OneStop);
@@ -27,7 +27,7 @@ void Bbraun::start(){
         std::cout<<"Initialize the connection with "<<std::endl;
         request_initialize_connection();
 
-        timer_cp1->start(1000);
+        timer_cp1->start(3000);
 
     }  catch (const std::exception& e) {
         qDebug()<<"Error opening/writing to serial port "<<e.what();

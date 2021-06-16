@@ -33,13 +33,20 @@ Evita4_vent::Evita4_vent(){
 
 
     timer_cp1 = new QTimer();
-    connect(timer_cp1, SIGNAL(timeout()), this, SLOT(request_realtime_config()));
+    connect(timer_cp1, SIGNAL(timeout()), this, SLOT(request_alarm_low_limit()));
 
     timer_cp2 = new QTimer();
-    connect(timer_cp2, SIGNAL(timeout()), this, SLOT(request_alarmCP1()));
+    connect(timer_cp2, SIGNAL(timeout()), this, SLOT(request_alarm_high_limit()));
 
     timer_cp3 = new QTimer();
-    connect(timer_cp3, SIGNAL(timeout()), this, SLOT(request_alarm_high_limit()));
+    connect(timer_cp3, SIGNAL(timeout()), this, SLOT(request_alarmCP1()));
+
+    timer_cp4 = new QTimer();
+    connect(timer_cp4, SIGNAL(timeout()), this, SLOT(request_alarmCP2()));
+
+    timer_cp5 = new QTimer();
+    connect(timer_cp5, SIGNAL(timeout()), this, SLOT(request_measurement_cp1()));
+
 }
 
 void Evita4_vent::start(){
@@ -48,19 +55,18 @@ void Evita4_vent::start(){
         try_to_open_port();
 
         std::cout<<"Initialize the connection with Evita 4"<<std::endl;
-        send_request("icc");
+        request_icc();
 
         timer_cp1->start(5000);
-
-        //timer_cp2->start(5000);
-        //timer_cp3->start(1000);
-
+        timer_cp2->start(5000);
+        timer_cp3->start(1000);
+        timer_cp4->start(1000);
+        timer_cp5->start(3000);
 
     }  catch (const std::exception& e) {
         qDebug()<<"Error opening/writing to serial port "<<e.what();
     }
 }
-
 
 
 void Evita4_vent::process_buffer(){
@@ -80,6 +86,7 @@ void Evita4_vent::process_buffer(){
     }
 }
 void Evita4_vent::create_frame_list_from_byte(byte b){
+
     if(sync_data==true){
         if((b & 0xf0)==0xd0)
             new_data=true;
@@ -244,14 +251,14 @@ void Evita4_vent::read_packet_from_frame(){
                     parse_realtime_data_configs(frame_buffer[i]);
                     qDebug()<<"get Response realtime configuration";
                     free_flag=true;
-                    send_request("realtime_data");
+                    request_realtime_data();
                     break;
                 }
 
                 else if(command_type==0x54){ // Response realtime data
                     qDebug()<<"get realtime data command, enable datastream";
                     sync_data = true;
-                    send_request("sync");
+                    request_sync();
                     break;
                 }
 
@@ -530,9 +537,9 @@ void Evita4_vent::parse_realtime_data(std::vector<byte> &packetbuffer){
                 {
                     byte datacode = realtime_data_list[value_index];
                     physio_id = RealtimeConfigs.find(datacode)->second;
-                    byte front_num = 0x3f & DataValue[0];
-                    byte back_num = 0x3f & DataValue[1];
-                    int value = int(front_num)+int(back_num)*(2^6);
+                    byte front_num = (0x3f & DataValue[0]);
+                    byte back_num = (0x3f & DataValue[1]);
+                    int value = int(front_num)+int(back_num)*(64);
                     float value2=0;
 
                     for(int j=0;j<cfg_list.size();j++){
@@ -553,7 +560,8 @@ void Evita4_vent::parse_realtime_data(std::vector<byte> &packetbuffer){
                     //header_list.push_back(physio_id);
                     value_index=value_index+1;}
             }
-            else if(DataValue[0] & 0xc0 == 0xc0){// sync command
+            else if((DataValue[0] & 0xc0) == 0xc0){// sync command
+                qDebug()<<"cmd";
                 //TODO::deal with sync command
             }
         }

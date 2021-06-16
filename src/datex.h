@@ -96,10 +96,42 @@ const std::map<byte, std::string> WaveIdLabels{
      stringpair_t(37, "DRI_WF_INVP8"),
      stringpair_t(38, "DRI_WF_PLETH2"),
      stringpair_t(39, "DRI_WF_HGHRES_RESP_IMP"),
-
-
 };
 
+const int max_wave_samples_limitation= 600;
+typedef std::pair<byte, int> stringpair_f;
+const std::map<byte, int> WaveIdFreqs{
+     stringpair_f(1, 300),
+     stringpair_f(2, 300),
+     stringpair_f(3, 300),
+     stringpair_f(4, 100),
+     stringpair_f(5, 100),
+     stringpair_f(6, 100),
+     stringpair_f(7, 100),
+     stringpair_f(8, 100),
+     stringpair_f(9, 25),
+     stringpair_f(10, 25),
+     stringpair_f(11, 25),
+     stringpair_f(12, 25),
+     stringpair_f(13, 25),
+     stringpair_f(14, 25),
+     stringpair_f(15, 25),
+     stringpair_f(16, 100),
+     stringpair_f(17, 100),
+     stringpair_f(18, 100),
+     stringpair_f(19, 100),
+     stringpair_f(20, 100),
+     stringpair_f(21, 100),
+     stringpair_f(23, 25),
+     stringpair_f(24, 25),
+     stringpair_f(29, 25),
+     stringpair_f(32, 100),
+     stringpair_f(35, 300),
+     stringpair_f(36, 100),
+     stringpair_f(37, 100),
+     stringpair_f(38, 100),
+     stringpair_f(39, 100),
+};
 struct phdb_status_bits{
     unsigned int exists :1;
     unsigned int active :1;

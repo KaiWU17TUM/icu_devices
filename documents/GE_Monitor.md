@@ -17,6 +17,10 @@ Only the Physiological data and Waveform data are of our concern, so only the in
     8005313_10th_S5_DRI_Specification.pdf
     Bx50_Computer Interface Specs.pdf
 
+## Working pattern
+<br />
+<img src="./imgs/GE_Monitor_workflow.png", width="500" >
+
 ## Requests
 <br />
 
@@ -65,6 +69,45 @@ Get all 4 types of Physiological data
     pRequest->phdb_class_bf = DRI_PHDBCL_REQ_BASIC_MASK|DRI_PHDBCL_REQ_EXT1_MASK|DRI_PHDBCL_REQ_EXT2_MASK|DRI_PHDBCL_REQ_EXT3_MASK;
 
 The description for the content of these 4 kinds of data is available from page 19-57 (pdf page) in document *8005313_10th_S5_DRI_Specification.pdf*
+<br />
+<br />
+<br />
+
+### alarm data
+<br />
+
+The code for preparing a alarm data transmission request is as follows. 
+    struct datex::datex_record_alarm_req requestPkt;
+    struct datex::al_tx_cmd *pRequest;
+
+    //Clear the pkt
+    memset(&requestPkt,0x00,sizeof(requestPkt));
+
+Here the length of packet is calculated
+
+    //Fill the header
+    requestPkt.hdr.r_len = sizeof(struct datex::datex_hdr)+sizeof(struct datex::al_tx_cmd);
+    requestPkt.hdr.r_maintype = DRI_MT_ALARM;
+    requestPkt.hdr.dri_level =  0;
+
+    //The pkt contains one subrecord
+    requestPkt.hdr.sr_desc[0].sr_type = 0;
+    requestPkt.hdr.sr_desc[0].sr_offset = (byte)0;
+    requestPkt.hdr.sr_desc[1].sr_type = (short) DRI_EOL_SUBR_LIST;
+
+    //Fill the request
+    pRequest = (struct datex::al_tx_cmd*)&(requestPkt.alarm_cmd);
+
+Here we choose differential mode, which only transfer data when there is a change in alarm status
+
+    pRequest->cmd = DRI_AL_ENTER_DIFFMODE;
+
+    byte* payload = (byte*)&requestPkt;
+    int length = sizeof(requestPkt);
+    //return payload
+    tx_buffer(payload,length);
+
+The description for the alarm data is available from page 61-63 (pdf page) in document *8005313_10th_S5_DRI_Specification.pdf*
 <br />
 <br />
 <br />

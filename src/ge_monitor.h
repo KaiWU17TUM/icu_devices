@@ -39,8 +39,8 @@ private:
     std::vector<std::vector<unsigned char>>frame_buffer;
     std::vector<unsigned char>b_list;
 
-    void request_phdb_transfer();
-    void request_wave_transfer();
+    void request_phdb_transfer(int interval);
+    void request_wave_transfer(std::vector<byte> wave_id);
     void tx_buffer(byte* payload, int length);
 
     void create_frame_list_from_byte(byte b);

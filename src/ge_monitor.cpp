@@ -19,23 +19,27 @@ void GE_Monitor::start(){
         std::cout<<"Try to open the serial port for GE Monitor"<<std::endl;
         try_to_open_port();
 
-        std::cout<<"Reset transfer";
+        std::cout<<"Reset wave transfer";
         request_wave_stop();
 
         std::cout<<"Try to get data from GE Monitor"<<std::endl;
-        request_alarm_transfer();
-        request_phdb_transfer();
-        request_wave_transfer();
+        int phdb_interval = 10;
+        std::vector<byte> wave_ids = {1, 8};
 
+        request_alarm_transfer(); // send the alarm transfer request, default into differential mode
 
-    }  catch (const std::exception& e) {
+        request_phdb_transfer(phdb_interval); // send the phdb data transfer request
+
+        request_wave_transfer(wave_ids); // send the wave transfer request
+
+    } catch (const std::exception& e) {
         qDebug()<<"Error opening/writing to serial port "<<e.what();
     }
 
 
 }
 
-void GE_Monitor::request_phdb_transfer(){
+void GE_Monitor::request_phdb_transfer(int interval){
     struct datex::datex_record_phdb_req requestPkt;
     struct datex::dri_phdb_req *pRequest;
 
@@ -55,7 +59,7 @@ void GE_Monitor::request_phdb_transfer(){
     //Fill the request
     pRequest = (struct datex::dri_phdb_req*)&(requestPkt.phdbr);
     pRequest->phdb_rcrd_type = DRI_PH_DISPL;
-    pRequest->tx_ival = 10;
+    pRequest->tx_ival = interval;
     pRequest->phdb_class_bf = DRI_PHDBCL_REQ_BASIC_MASK|DRI_PHDBCL_REQ_EXT1_MASK|DRI_PHDBCL_REQ_EXT2_MASK|DRI_PHDBCL_REQ_EXT3_MASK;
 
     byte* payload = (byte*)&requestPkt;
@@ -91,7 +95,16 @@ void GE_Monitor::request_alarm_transfer(){
     tx_buffer(payload,length);
 }
 
-void GE_Monitor::request_wave_transfer(){
+void GE_Monitor::request_wave_transfer(std::vector<byte> wave_id){
+    // Test if samples > limitation
+    int sum = 0;
+    for(int i=0;i<wave_id.size();i++){
+        sum+=datex::WaveIdFreqs.find(wave_id[i])->second;
+    }
+    if(sum>datex::max_wave_samples_limitation){
+        qDebug()<<"Samples per second exceeds maximum, this request will not be sent";
+        return;
+    }
     struct datex::datex_record_wave_req requestPkt;
     struct datex::dri_wave_req *pRequest;
 
@@ -111,12 +124,12 @@ void GE_Monitor::request_wave_transfer(){
     //Fill the request
     pRequest = (struct datex::dri_wave_req*)&(requestPkt.wfreq);
     pRequest->req_type = WF_REQ_CONT_START;
-    pRequest->type[0] = DRI_WF_ECG1;
-    pRequest->type[1] = DRI_WF_PLETH;
-    pRequest->type[2] = DRI_WF_INVP1;
-    pRequest->type[3] = DRI_WF_INVP2;
+    int i=0;
+    for(i=0;i<wave_id.size();i++){
+        pRequest->type[i] = wave_id[i];
+    }
 
-    pRequest->type[4] = DRI_EOL_SUBR_LIST;
+    pRequest->type[i] = DRI_EOL_SUBR_LIST;
 
     byte* payload = (byte*)&requestPkt;
     int length = sizeof(requestPkt);
@@ -153,7 +166,6 @@ void GE_Monitor::request_wave_stop(){
     tx_buffer(payload,length);
 
 }
-
 
 
 void GE_Monitor::tx_buffer(byte* payload, int length){
@@ -354,9 +366,10 @@ void GE_Monitor::read_packet_from_frame(){
                 }
                 std::vector<short> waveValList;
                 std::vector<unsigned long int> TimeList;
+                int samples = datex::WaveIdFreqs.find(record.hdr.sr_desc[j].sr_type)->second;
                 for(int n = 0; n < buflen; n += 2){
                     waveValList.push_back((buffer[n+1])*256+(buffer[n]));
-                    TimeList.push_back((unsigned long int)pc_time*1000+10*(n/2)/3);
+                    TimeList.push_back((unsigned long int)pc_time*1000+1000*(n/2)/samples);
                 }
 
                 WaveValResult wave_val;
@@ -367,7 +380,6 @@ void GE_Monitor::read_packet_from_frame(){
 
                 wave_val.Timestamp = ss.str();
                 wave_val.TimeList = TimeList;
-                //wave_val.DeviceID = m_DeviceID;
                 std::string physioId = datex::WaveIdLabels.find(record.hdr.sr_desc[j].sr_type)->second;
                 wave_val.PhysioID = physioId;
                 wave_val.Unitshift = get_wave_unit_shift(wave_val.PhysioID);

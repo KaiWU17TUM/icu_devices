@@ -28,6 +28,9 @@ private:
     QTimer *timer_cp1;
     QTimer *timer_cp2;
     QTimer *timer_cp3;
+    QTimer *timer_cp4;
+    QTimer *timer_cp5;
+
     QString pathcsv = QDir::currentPath() + "/../icu_devices/data/draeger_evita4/";
     bool free_flag = true;
     bool sync_data = false;
@@ -72,7 +75,7 @@ private:
 
 public slots:
     void process_buffer();
-    void request_icc(){if(free_flag){}}
+    void request_icc(){if(free_flag){free_flag=false;this->write_buffer({poll_request_icc_msg});}}
     void request_dev_id(){if(free_flag){free_flag=false;this->write_buffer({poll_request_deviceid});}}
     void request_measurement_cp1(){if(free_flag){free_flag=false;this->write_buffer({poll_request_config_measured_data_codepage1});}}
     void request_alarm_low_limit(){if(free_flag){free_flag=false;this->write_buffer({poll_request_low_alarm_limits});qDebug()<<"require low alarm limit";}}
@@ -80,59 +83,11 @@ public slots:
     void request_alarmCP1(){if(free_flag){free_flag=false;this->write_buffer({poll_request_alarmCP1});qDebug()<<"require alarmCP1";}}
     void request_alarmCP2(){if(free_flag){free_flag=false;this->write_buffer({poll_request_alarmCP2});qDebug()<<"require alarmCP2";}}
     void request_realtime_config(){{qDebug()<<("RTCFG");free_flag=false;this->write_buffer({request_realtime_configuration});sync_data=false;}}
-    void request_realtime_data(){{this->write_buffer({realtime_transmission_request});}}
+    void request_realtime_data(){this->write_buffer({realtime_transmission_request});}
     void request_sync(){this->write_buffer({sync_cmd});}
     void request_device_settings(){if(free_flag){free_flag=false;this->write_buffer({poll_request_device_settings});}}
     void request_text_messages(){if(free_flag){free_flag=false;this->write_buffer({poll_request_text_messages});}}
     void request_stop_communication(){if(free_flag){free_flag=false;this->write_buffer({poll_request_stop_com});}}
-
-    void send_request(std::string type){
-        if(free_flag){
-            free_flag=false;
-            if(type == "icc"){
-                this->write_buffer({poll_request_icc_msg});
-            }
-            else if(type == "measurement_cp1"){
-                this->write_buffer({poll_request_config_measured_data_codepage1});
-                qDebug()<<"request measuremnt 1";
-            }
-            else if(type == "alarm_low_limit"){
-                this->write_buffer({poll_request_low_alarm_limits});
-                qDebug()<<"request alarm_low_limit";
-            }
-            else if(type == "alarm_high_limit"){
-                this->write_buffer({poll_request_high_alarm_limits});
-                qDebug()<<"request alarm_high_limit";
-            }
-            else if(type == "alarmCP1"){
-                this->write_buffer({poll_request_alarmCP1});
-                qDebug()<<"request alarmCP1";
-            }
-            else if(type == "alarmCP2"){
-                this->write_buffer({poll_request_alarmCP2});
-                qDebug()<<"request alarmCP2";
-            }
-            else if(type == "device_settings"){
-                this->write_buffer({poll_request_device_settings});
-                qDebug()<<"request device_settings";
-            }
-            else if(type == "text_msgs"){
-                this->write_buffer({poll_request_text_messages});
-                qDebug()<<"request text_msgs";
-            }
-            else if(type == "realtime_cfg"){
-                this->write_buffer({request_realtime_configuration});
-                qDebug()<<"request request_realtime_configuration";
-            }
-        }
-        if(type == "realtime_data"){
-            this->write_buffer({realtime_transmission_request});
-        }
-        if(type == "sync"){
-            this->write_buffer({sync_cmd});
-        }
-
-    }
 
 };
 
