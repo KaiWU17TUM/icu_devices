@@ -1,5 +1,5 @@
 # icu_devices
-This is an implementation for data retrieving from ICU devices and realsense camera.
+This project contains code and scripts for data retrieving from ICU devices (GE_Monitor, Braun perfusor and Evita 4 ventilator) and realsense camera.
 
 ```
 Icu_devices_project
@@ -12,7 +12,7 @@ Icu_devices_project
 |   |   hardware_list.md
 |   |   ...
 |
-└───code : [Code for data retrieving]
+└───src : [Code for data retrieving]
 │   │   bbraun_const.h
 │   │   bbraun.cpp
 │   │   ...
@@ -28,40 +28,24 @@ Icu_devices_project
     │   ...
 
 ```
-The connection is shown in the following graph, more detailed description about connections can be found in the file *hardware_list.md*
+The whole hardware connection setup is shown in the following graph, more detailed description about connections can be found in the file *hardware_list.md*
 <img src="./documents/imgs/Connection.png">
 <br>
 
 ## Folder **scripts**
-Inside this folder you will see 4 bash scripts. They are used to automatically connect hardwares (ICU devices and cameras) to station via usbip service.
-
-### Connect everything
-* To connect everything, just run *"sudo sh start_local.sh"*, it will perform the following tasks
-
-> **STEP 1 : Copy and run commands in Raspberry pi**: Copy start_remote.sh file to two raspberry pi and run the file there. It will mount necessary driver, start usbip service and bind all devices to the usbip service.\
-> **STEP 2 : Mounting necessary driver for usb-ip** \
-> **STEP 3 : Connecting existing devices from ip address** : List all devices bind to the two raspberry pi and filter out the bus-id of devices, attach the devices with their bus-ids\
-> **STEP 4 : Changing access permission of USB devices**: Giving software the access permission to serial ports
-
-
-### Disconnect everything
-* To disconnect everything, just run *"sudo sh cancel_local.sh"*, it will perform the following tasks
-
-> **STEP1 :  Stop usbip locally**\
-> **STEP2 :  Copy and run commands in Raspberry pi** : Copy cancel_remote.sh file to two raspberry pi and run the file there. It will unbind devices and kill the usbip service.
-
+Inside this folder you will see 4 bash scripts. They are used to automatically connect hardwares (ICU devices and cameras) to station via usbip service. More detail is found in the Readme.md file.
 \
 <br>
 
 
-## Folder **code**
+## Folder **src**
 In this folder you will see the Qt project to retrieve data from medical devices. 
 \
 \
 <img src='./documents/imgs/UML.png'>
 \
 \
-In general, since all medical devices use serial protocal to do the communication, they all inherited from the Device class who contains a Qtserial port for serial communicating. Since they have similar workflow, the common functions can be refactored into father class in the future.
+In general, since all medical devices use serial protocal to do the communication, they all inherited from the Device class who contains a Qtserial port for serial communicating. 
 
 ```
 GE_Monitor
@@ -81,4 +65,6 @@ Evita4_vent
 
 ```
 
-There is a function called start() in all ICU_devices, which is the main loop of program flow, you can change the request and period. More detailed descriptions are found in documents folder.
+There is a function called **start()** for all ICU_devices classes.
+
+This is the main working loop for the device. You can change the request and period. More detailed descriptions are found in documents folder.

@@ -1,9 +1,8 @@
-# GE Monitor
+## GE Monitor
 
-Patient data measured by S/5 Network compatible monitors can be accessed by external
-applications through S/5 System Interface. The S/5 System Interface consists of a serial RS232
-interface (called S/5 Computer Interface) that can be accessed directly by external
-applications. Based on the documents for S/5 System Interface, we developed the program.
+This implementation is based on S/5 Computer Interface and Datex-Ohmeda Record Specification.
+
+### Communication Protocol
 
 In general, 4 different kinds of data are available with S/5 System Interface and they are:
 
@@ -12,10 +11,16 @@ In general, 4 different kinds of data are available with S/5 System Interface an
     3. Waveform ADI (DRI_MT_WAVE)
     4. Network Management ADI (DRI_MT_NETWORK)
 
-Only the Physiological data and Waveform data are of our concern, so only the interaction with them are implemented. More detail can be found in following documents.
+Only the first 3 types are of our concern, so only the interaction with them are implemented. 
+1. The Physiological Data will be received periodically once the request is sent once. 
+2. The Alarm Data will be received if there is a change in the alarm status once the request is sent once.
+3. The Waveform data will be received continously, once the request is sent once.
+
+More detail can be found in following documents.
 
     8005313_10th_S5_DRI_Specification.pdf
     Bx50_Computer Interface Specs.pdf
+
 
 ## Working pattern
 <br />
@@ -24,10 +29,11 @@ Only the Physiological data and Waveform data are of our concern, so only the in
 ## Requests
 <br />
 
-### physiological data
+### Type 1 : Physiological data (PHDB data)
 <br />
 
-The code for preparing a physiological data transmission request is as follows. The following example will get all PHDB data every 10 seconds.
+The following code is the detail preparation of a PHDB data request. We can set the **transfer period** of PHDB data. 
+
 
     struct datex::datex_record_phdb_req requestPkt;
     struct datex::dri_phdb_req *pRequest;
@@ -73,10 +79,11 @@ The description for the content of these 4 kinds of data is available from page 
 <br />
 <br />
 
-### alarm data
+### Type 2 : Alarm data
 <br />
 
-The code for preparing a alarm data transmission request is as follows. 
+The code for preparing a alarm data transmission request is as follows. Here we choose **differential mode**, which only transfer data when there is a change in alarm status.
+
     struct datex::datex_record_alarm_req requestPkt;
     struct datex::al_tx_cmd *pRequest;
 
@@ -98,7 +105,7 @@ Here the length of packet is calculated
     //Fill the request
     pRequest = (struct datex::al_tx_cmd*)&(requestPkt.alarm_cmd);
 
-Here we choose differential mode, which only transfer data when there is a change in alarm status
+Here we choose **differential mode**, which only transfer data when there is a change in alarm status
 
     pRequest->cmd = DRI_AL_ENTER_DIFFMODE;
 
@@ -112,11 +119,11 @@ The description for the alarm data is available from page 61-63 (pdf page) in do
 <br />
 <br />
 
-### Waveform
+### Type 3 : Waveform
 
 <br />
 
-The code for preparing a waveform data transmission request is as follows. The following example will start to get ECG1 signal waveform.
+The code for preparing a waveform data transmission request is as follows. The following example will start to get ECG1 signal waveform. We can add or change the **type of waveform**. **(The summation of samples per second cannot be larger than 600)**
 
 
     struct datex::datex_record_wave_req requestPkt;
