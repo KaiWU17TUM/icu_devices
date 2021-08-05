@@ -1,5 +1,5 @@
 #include "ge_monitor.h"
-
+#include "QThread"
 GE_Monitor::GE_Monitor()
 {
     local_serial_port = new MySerialPort();
@@ -10,7 +10,8 @@ GE_Monitor::GE_Monitor()
     local_serial_port->serial->setStopBits(QSerialPort::OneStop);
     local_serial_port->serial->setFlowControl(QSerialPort::HardwareControl);
     QObject::connect(local_serial_port->serial, SIGNAL(readyRead()), this, SLOT(process_buffer()));
-
+    timer_cp1 = new QTimer();
+    connect(timer_cp1, SIGNAL(timeout()), this, SLOT(save_data()));
 }
 
 
@@ -22,23 +23,26 @@ void GE_Monitor::start(){
         std::cout<<"Reset wave transfer";
         request_wave_stop();
 
-        std::cout<<"Try to get data from GE Monitor"<<std::endl;
+        // Set the period of phdb data
         int phdb_interval = 10;
+        // Set the wave that you want to retrieve
         std::vector<byte> wave_ids = {1, 8};
 
+        std::cout<<"Try to get data from GE Monitor"<<std::endl;
         request_alarm_transfer(); // send the alarm transfer request, default into differential mode
-
         request_phdb_transfer(phdb_interval); // send the phdb data transfer request
-
         request_wave_transfer(wave_ids); // send the wave transfer request
+        int period = 3000; //unit ms
+        timer_cp1->start(period);
 
     } catch (const std::exception& e) {
         qDebug()<<"Error opening/writing to serial port "<<e.what();
     }
-
-
 }
 
+/**
+ * @brief GE_Monitor::request_phdb_transfer : call this function to retrieve phdb data periodically
+ */
 void GE_Monitor::request_phdb_transfer(int interval){
     struct datex::datex_record_phdb_req requestPkt;
     struct datex::dri_phdb_req *pRequest;
@@ -65,9 +69,12 @@ void GE_Monitor::request_phdb_transfer(int interval){
     byte* payload = (byte*)&requestPkt;
     int length = sizeof(requestPkt);
     //return payload
-    tx_buffer(payload,length);
+    write_buffer(payload,length);
 }
 
+/**
+ * @brief GE_Monitor::request_alarm_transfer : call this function to retrieve alarm data whenever it happens
+ */
 void GE_Monitor::request_alarm_transfer(){
     struct datex::datex_record_alarm_req requestPkt;
     struct datex::al_tx_cmd *pRequest;
@@ -92,13 +99,16 @@ void GE_Monitor::request_alarm_transfer(){
     byte* payload = (byte*)&requestPkt;
     int length = sizeof(requestPkt);
     //return payload
-    tx_buffer(payload,length);
+    write_buffer(payload,length);
 }
 
+/**
+ * @brief GE_Monitor::request_wave_transfer : call this function to retrieve wave
+ */
 void GE_Monitor::request_wave_transfer(std::vector<byte> wave_id){
     // Test if samples > limitation
     int sum = 0;
-    for(int i=0;i<wave_id.size();i++){
+    for(uint i=0;i<wave_id.size();i++){
         sum+=datex::WaveIdFreqs.find(wave_id[i])->second;
     }
     if(sum>datex::max_wave_samples_limitation){
@@ -124,7 +134,7 @@ void GE_Monitor::request_wave_transfer(std::vector<byte> wave_id){
     //Fill the request
     pRequest = (struct datex::dri_wave_req*)&(requestPkt.wfreq);
     pRequest->req_type = WF_REQ_CONT_START;
-    int i=0;
+    uint i=0;
     for(i=0;i<wave_id.size();i++){
         pRequest->type[i] = wave_id[i];
     }
@@ -134,10 +144,13 @@ void GE_Monitor::request_wave_transfer(std::vector<byte> wave_id){
     byte* payload = (byte*)&requestPkt;
     int length = sizeof(requestPkt);
     //return payload
-    tx_buffer(payload,length);
+    write_buffer(payload,length);
 
 }
 
+/**
+ * @brief GE_Monitor::request_wave_stop : call this function to stop wave transfer
+ */
 void GE_Monitor::request_wave_stop(){
     struct datex::datex_record_wave_req requestPkt;
     struct datex::dri_wave_req *pRequest;
@@ -163,12 +176,12 @@ void GE_Monitor::request_wave_stop(){
     byte* payload = (byte*)&requestPkt;
     int length = sizeof(requestPkt);
     //return payload
-    tx_buffer(payload,length);
+    write_buffer(payload,length);
 
 }
 
 
-void GE_Monitor::tx_buffer(byte* payload, int length){
+void GE_Monitor::write_buffer(byte* payload, int length){
     byte checksum=0;
     std::vector<byte> temptxbuff;
 
@@ -220,17 +233,24 @@ void GE_Monitor::tx_buffer(byte* payload, int length){
 
 }
 
+/**
+ * @brief GE_Monitor::process_buffer : The serial port callback when reveive data
+ */
 void GE_Monitor::process_buffer(){
     QByteArray data = local_serial_port->serial->readAll();
     for (int i = 0; i < data.size(); ++i) {
         create_frame_list_from_byte(data[i]);
     }
-    if(frame_buffer.size()>0){
-        read_packet_from_frame();
-        frame_buffer.clear();
-    }
+   // if((frame_buffer).size()>200){
+      if(frame_buffer.size()>0){
+            read_packet_from_frame();
+            frame_buffer.clear();
+      }
+    //}
 }
-
+/**
+ * @brief GE_Monitor::create_frame_list_from_byte : call this function to get raw packet out from serial data
+ */
 void GE_Monitor::create_frame_list_from_byte(byte b){
     //if get a byte which indicates the start of a msg
     if(b==0x7e && m_fstart){
@@ -268,7 +288,7 @@ void GE_Monitor::create_frame_list_from_byte(byte b){
     else if(m_storeend){
         if(b_list.size()!=0){
             byte checksum=0x00;
-            for(int i=0;i<b_list.size()-1;i++){
+            for(uint i=0;i<b_list.size()-1;i++){
                 checksum+=b_list[i];
             }
 
@@ -292,14 +312,17 @@ void GE_Monitor::create_frame_list_from_byte(byte b){
 
 }
 
+/**
+ * @brief GE_Monitor::read_packet_from_frame : call this function to get parsed data from raw packet
+ */
 void GE_Monitor::read_packet_from_frame(){
     std::vector<struct datex::datex_record*> record_array;
-    for(int i=0;i<frame_buffer.size();i++){
+    for(uint i=0;i<frame_buffer.size();i++){
         struct datex::datex_record* ptr= (struct datex::datex_record*)(&frame_buffer[i][0]);
         record_array.push_back(ptr);
     }
 
-    for(int i=0;i<frame_buffer.size();i++){
+    for(uint i=0;i<frame_buffer.size();i++){
         struct datex::datex_record record = (*record_array[i]);
 
         // this is a PHDB record
@@ -328,6 +351,7 @@ void GE_Monitor::read_packet_from_frame(){
                         break;
                 }
                 std::time_t temp = unixtime;
+                pkg_timestamp = std::time(nullptr);
                 std::tm* t = std::gmtime(&temp);
                 std::stringstream ss;
                 ss << std::put_time(t, "%Y-%m-%d %I:%M:%S %p");
@@ -337,7 +361,7 @@ void GE_Monitor::read_packet_from_frame(){
                 save_ext1_and_ext2_and_ext3_record(phdata_ptr);
 
             }
-            write_to_rows();
+            //write_to_rows();
         }
 
         // this is a WAVE record
@@ -351,7 +375,6 @@ void GE_Monitor::read_packet_from_frame(){
             // for each subrecord
             for(int j=0;j<8&&record.hdr.sr_desc[j].sr_type!=0xFF;j++){
                 int offset = (int)record.hdr.sr_desc[j].sr_offset;
-                int nextoffset = 0;
                 int srsamplelenbytes[2];
                 srsamplelenbytes[0] = record.rcrd.data[offset];
                 srsamplelenbytes[1] = record.rcrd.data[offset+1];
@@ -386,7 +409,7 @@ void GE_Monitor::read_packet_from_frame(){
                 wave_val.Value = waveValList;
                 m_WaveValList.push_back(wave_val);
             }
-            save_wave_to_csv();
+            //save_wave_to_csv();
         }
         //save_wave_to_csv();
 
@@ -402,7 +425,6 @@ void GE_Monitor::read_packet_from_frame(){
                 struct datex::dri_al_msg dri_al_msg_ptr;
                 dri_al_msg_ptr = *(struct datex::dri_al_msg*)buffer;
 
-                int size = sizeof(struct datex::al_disp_al);
                 std::time_t temp = unixtime;
                 std::tm* t = std::gmtime(&temp);
                 std::stringstream ss;
@@ -412,7 +434,7 @@ void GE_Monitor::read_packet_from_frame(){
                 for(int n=0; n<5; n++){
                     alarm[n].Timestamp = ss.str();
                     alarm[n].text = std::string(dri_al_msg_ptr.al_disp[n].text);
-                    for(int m=0;m<alarm[n].text.length();m++){
+                    for(uint m=0;m<alarm[n].text.length();m++){
                         if(alarm[n].text[m]=='\n'){
                             alarm[n].text[m]=' ';
                             break;
@@ -433,19 +455,32 @@ void GE_Monitor::read_packet_from_frame(){
                         alarm[n].color = "DRI_PR3";
                         break;
                 }
+                alarm[n].timestamp = pkg_timestamp;
                 if(dri_al_msg_ptr.al_disp[n].text_changed==1){
                     m_AlarmList.push_back(alarm[n]);
                 }
 
             }
         }
-            save_alarm_to_csv();
+
     }
 
 
     }
 }
 
+
+/*****************************************************/
+/**
+ * @brief Saving functions : call these function to save parsed data
+ */
+
+void GE_Monitor::save_data()
+{
+    write_to_rows();
+    save_alarm_to_csv();
+    save_wave_to_csv();
+}
 double GE_Monitor::get_wave_unit_shift(std::string physioId){
     double decimalshift = 1;
     if(physioId.find("ECG")!=std::string::npos)
@@ -476,67 +511,83 @@ double GE_Monitor::get_wave_unit_shift(std::string physioId){
 }
 
 void GE_Monitor::save_alarm_to_csv(){
-    for(int i=0; i<m_AlarmList.size(); i++){
-
+    for(uint i=0; i<m_AlarmList.size(); i++){
         // Get local time
-        std::time_t result = std::time(nullptr);
-        std::string pkt_timestamp =std::asctime(std::localtime(&result));
+        std::time_t pc_current_timestamp = std::time(nullptr);
+        std::string pkt_timestamp =std::asctime(std::localtime(&pc_current_timestamp));
         pkt_timestamp.erase(8,11);
 
         QString filename =  pathcsv + QString::fromStdString(pkt_timestamp) + "_Alarm.csv";
 
         std::string row;
+        bool changed=false;
+        int elementcount=0;
 
-        if((m_AlarmList[i].text.length())>0){
+        if((m_AlarmList[i].text.length())>0 && pc_current_timestamp> m_AlarmList[i].timestamp+timelapse
+                &&  m_AlarmList[i].timestamp== m_AlarmList[0].timestamp){
+            changed = true;
+            elementcount+=1;
             row.append(m_AlarmList[i].Timestamp);
             row.append(",");
             row.append( m_AlarmList[i].text);
             row.append(",");
             row.append(m_AlarmList[i].color);
             row.append(",\n");
-
-            QFile myfile(filename);
-            if (myfile.open(QIODevice::Append)) {
-                myfile.write((char*)&row[0], row.length());
-                qDebug()<<"write to alarm file";
             }
-        }
 
+    if(changed){
+        QFile myfile(filename);
+        if (myfile.open(QIODevice::Append)) {
+            myfile.write((char*)&row[0], row.length());
+            qDebug()<<"write to alarm file";
+        }
+        m_AlarmList.erase(m_AlarmList.begin(), m_AlarmList.begin()+elementcount);
     }
-    m_AlarmList.clear();
+}
 }
 
-
 void GE_Monitor::save_wave_to_csv(){
-    for(int i=0; i<m_WaveValList.size(); i++){
+    for(uint i=0; i<m_WaveValList.size(); i++){
 
         // Get local time
-        std::time_t result = std::time(nullptr);
-        std::string pkt_timestamp =std::asctime(std::localtime(&result));
+        std::time_t current_pc_timestamp = std::time(nullptr);
+        std::string pkt_timestamp =std::asctime(std::localtime(&current_pc_timestamp));
         pkt_timestamp.erase(8,11);
 
         QString filename =  pathcsv + QString::fromStdString(pkt_timestamp) + QString::fromStdString(m_WaveValList[i].PhysioID) + ".csv";
 
         double decimalshift = m_WaveValList[i].Unitshift;
         std::string row;
-        for(int j=0;j<m_WaveValList[i].Value.size();j++){
-            short value = m_WaveValList[i].Value[j];
-            std::string wave_val = validate_wave_data(value, decimalshift, false);
-            row.append( m_WaveValList[i].Timestamp);
-            row.append(",");
-            row.append(wave_val);
-            row.append(",");
-            row.append(std::to_string(m_WaveValList[i].TimeList[j]));
-            row.append(",\n");
+        bool changed=false;
+        int elementcount=0;
+        for(uint j=0;j<m_WaveValList[i].Value.size();j++){
+            if(current_pc_timestamp>m_WaveValList[i].TimeList[j]/1000+timelapse){
+                changed=true;
+                elementcount+=1;
+
+                std::string wave_val = validate_wave_data(m_WaveValList[i].Value[j], decimalshift, false);
+                row.append( m_WaveValList[i].Timestamp);
+                row.append(",");
+                row.append(wave_val);
+                row.append(",");
+                row.append(std::to_string(m_WaveValList[i].TimeList[j]));
+                row.append(",\n");
+            }
         }
 
-        QFile myfile(filename);
-        if (myfile.open(QIODevice::Append)) {
-            myfile.write((char*)&row[0], row.length());
-            qDebug()<<"write to wave file";
+        if(changed){
+            QFile myfile(filename);
+            if (myfile.open(QIODevice::Append)) {
+                myfile.write((char*)&row[0], row.length());
+                qDebug()<<"write to wave file";
+                //m_WaveValList.clear();
+                m_WaveValList[i].Value.erase( m_WaveValList[i].Value.begin(),  m_WaveValList[i].Value.begin()+elementcount);
+                m_WaveValList[i].TimeList.erase( m_WaveValList[i].TimeList.begin(),  m_WaveValList[i].TimeList.begin()+elementcount);
+            }
         }
+
     }
-    m_WaveValList.clear();
+
 }
 
 
@@ -726,6 +777,7 @@ void GE_Monitor::validate_add_data(std::string physio_id, short value, double de
     NumVal.PhysioID = physio_id;
     NumVal.Value = valuestr;
     NumVal.DeviceID = m_DeviceID;
+    NumVal.timestamp = pkg_timestamp;
 
     m_NumericValList.push_back(NumVal);
     m_NumValHeaders.push_back(NumVal.PhysioID);
@@ -735,8 +787,8 @@ void GE_Monitor::validate_add_data(std::string physio_id, short value, double de
 void GE_Monitor::write_to_rows(){
     if (m_NumericValList.size() != 0)
     {
-        std::time_t result = std::time(nullptr);
-        std::string pkt_timestamp =std::asctime(std::localtime(&result));
+        std::time_t current_pc_time = std::time(nullptr);
+        std::string pkt_timestamp =std::asctime(std::localtime(&current_pc_time));
         pkt_timestamp.erase(8,11);
         QString filename = pathcsv + QString::fromStdString(pkt_timestamp) + "PHDB_data.csv";
 
@@ -745,21 +797,30 @@ void GE_Monitor::write_to_rows(){
         row.append("\n");
         row.append(m_NumericValList[0].Timestamp);
         row.append(",");
+        bool changed=false;
+        int elementcount=0;
 
-        for(int i=0;i<m_NumericValList.size();i++){
-            row.append(m_NumericValList[i].Value);
-            row.append(",");
+        for(uint i=0;i<m_NumericValList.size();i++){
+            if(current_pc_time > m_NumericValList[i].timestamp+timelapse
+                    &&  m_NumericValList[i].timestamp == m_NumericValList[0].timestamp){
+                elementcount+=1;
+                changed=true;
+                row.append(m_NumericValList[i].Value);
+                row.append(",");
+            }
         }
 
-        QFile myfile(filename);
-        if (myfile.open(QIODevice::Append)) {
-            myfile.write((char*)&row[0], row.length());
-            qDebug()<<"write to phdb";
+        if(changed){
+            QFile myfile(filename);
+            if (myfile.open(QIODevice::Append)) {
+                myfile.write((char*)&row[0], row.length());
+                qDebug()<<"write to phdb";
+            }
+            m_NumericValList.erase(m_NumericValList.begin(), m_NumericValList.begin()+elementcount);
         }
-        m_NumericValList.clear();
+
     }
 }
-
 
 void GE_Monitor::write_to_file_header(QString filename)
 {
@@ -770,7 +831,7 @@ void GE_Monitor::write_to_file_header(QString filename)
         headers.append(",");
 
 
-        for(int i=0;i<m_NumValHeaders.size();i++){
+        for(uint i=0;i<m_NumValHeaders.size();i++){
             headers.append(m_NumValHeaders[i]);
             headers.append(",");
         }

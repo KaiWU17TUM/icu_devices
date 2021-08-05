@@ -11,17 +11,17 @@ int main(int argc, char *argv[])
     // B,C,D => USB1,2,3
     // GE,Draeger,BBraun => USB2,4,5
 
-
-    Bbraun my_perfusor;
-    my_perfusor.start();
-
-
-    // GE_Monitor my_monitor;
-    // my_monitor.start();
+    // Uncomment the following lines to enable or disable the data retrieving from hardwares
+     Bbraun my_perfusor;
+     my_perfusor.start();
 
 
-    Evita4_vent my_evita4_vent;
-    my_evita4_vent.start();
+     GE_Monitor my_monitor;
+     my_monitor.start();
+
+
+    // Evita4_vent my_evita4_vent;
+    // my_evita4_vent.start();
 
     /****************************************************************************************************************************/
     //Codes below are for debugging purpose, please ignore them
@@ -36,7 +36,6 @@ int main(int argc, char *argv[])
     }*/
     //my_monitor.create_record_list()
     /****************************************************************************************************************************/
-
 
     return a.exec();
 }

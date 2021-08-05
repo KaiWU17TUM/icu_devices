@@ -17,7 +17,7 @@ Evita4_vent::Evita4_vent(){
 
     //realtime_transmission_request.push_back(0x1b);
     realtime_transmission_request.push_back(0x54);
-    for(int i=0;i<realtime_data_list.size();i++){
+    for(uint i=0;i<realtime_data_list.size();i++){
         realtime_transmission_request.push_back(0x30);
         realtime_transmission_request.push_back(realtime_data_list[i]+0x30);
         realtime_transmission_request.push_back(0x30);
@@ -47,6 +47,9 @@ Evita4_vent::Evita4_vent(){
     timer_cp5 = new QTimer();
     connect(timer_cp5, SIGNAL(timeout()), this, SLOT(request_measurement_cp1()));
 
+    timer_cp6 = new QTimer();
+    connect(timer_cp6, SIGNAL(timeout()), this, SLOT(save_data()));
+
 }
 
 void Evita4_vent::start(){
@@ -57,18 +60,26 @@ void Evita4_vent::start(){
         std::cout<<"Initialize the connection with Evita 4"<<std::endl;
         request_icc();
 
-        timer_cp1->start(5000);
-        timer_cp2->start(5000);
-        timer_cp3->start(1000);
-        timer_cp4->start(1000);
+        timer_cp1->start(3000);
+        QThread::sleep(1);
+        timer_cp2->start(3000);
+
+        //timer_cp3->start(1000);
+        //timer_cp4->start(1000);
+        QThread::sleep(1);
         timer_cp5->start(3000);
+
+        timer_cp6->start(1000);
+
 
     }  catch (const std::exception& e) {
         qDebug()<<"Error opening/writing to serial port "<<e.what();
     }
 }
 
-
+/**
+ * @brief Evita4_vent::process_buffer: The serial port callback when reveive data
+ */
 void Evita4_vent::process_buffer(){
     QByteArray data = local_serial_port->serial->readAll();
     try
@@ -85,8 +96,11 @@ void Evita4_vent::process_buffer(){
         qDebug()<<e.what();
     }
 }
+/**
+ * @brief Evita4_vent::create_frame_list_from_byte:call this function to get raw packet out from serial data
+ * @param b
+ */
 void Evita4_vent::create_frame_list_from_byte(byte b){
-
     if(sync_data==true){
         if((b & 0xf0)==0xd0)
             new_data=true;
@@ -136,7 +150,7 @@ void Evita4_vent::create_frame_list_from_byte(byte b){
             std::vector<byte> payload;
             if (framelen != 0)
             {
-                for(unsigned long i=0;i<framelen-2;i++){
+                for(int i=0;i<framelen-2;i++){
                     payload.push_back(b_list[i]);
                 }
                 add_checksum(payload);
@@ -154,7 +168,9 @@ void Evita4_vent::create_frame_list_from_byte(byte b){
     }
 }
 
-
+/**
+ * @brief Evita4_vent::read_packet_from_frame: call this function to get parsed data from raw packet
+ */
 void Evita4_vent::read_packet_from_frame(){
     std::time_t result = std::time(nullptr);
     pkt_timestamp =std::asctime(std::localtime(&result));
@@ -179,6 +195,7 @@ void Evita4_vent::read_packet_from_frame(){
                     command_echo_response(cmd); //return empty device identification
                     break;
                 }
+                else{break;}
 
 
             case 0x01: // response received
@@ -261,6 +278,7 @@ void Evita4_vent::read_packet_from_frame(){
                     request_sync();
                     break;
                 }
+                else{break;}
 
         default:
             if((response_type & 0xf0) == 0xd0){
@@ -273,6 +291,10 @@ void Evita4_vent::read_packet_from_frame(){
     }
 }
 
+/**
+ * @brief Evita4_vent::parse_data_text_settings
+ * @param packetbuffer
+ */
 void Evita4_vent::parse_data_text_settings(std::vector<byte> &packetbuffer){
     unsigned long framelen = packetbuffer.size();
     if (framelen != 0)
@@ -303,16 +325,18 @@ void Evita4_vent::parse_data_text_settings(std::vector<byte> &packetbuffer){
 
 
             NumVal local_NumVal;
+
             local_NumVal.Timestamp = pkt_timestamp;
             local_NumVal.PhysioID = physio_id;
             local_NumVal.Value =DataValue;
+            local_NumVal.timestamp = std::time(nullptr);
 
             numval_list.push_back(local_NumVal);
             header_list.push_back(physio_id);
 
         }
-        save_num_val_list_rows("TextMessages");
-        numval_list.clear();
+        //save_num_val_list_rows("TextMessages");
+        //numval_list.clear();
     }
 }
 void Evita4_vent::parse_data_device_settings(std::vector<byte> &packetbuffer){
@@ -346,16 +370,18 @@ void Evita4_vent::parse_data_device_settings(std::vector<byte> &packetbuffer){
             local_NumVal.Timestamp = pkt_timestamp;
             local_NumVal.PhysioID = physio_id;
             local_NumVal.Value =DataValue;
+            local_NumVal.timestamp = std::time(nullptr);
 
             numval_list.push_back(local_NumVal);
             header_list.push_back(physio_id);
         }
-         save_num_val_list_rows("DeviceSettings");
-         numval_list.clear();
+         //save_num_val_list_rows("DeviceSettings");
+         //numval_list.clear();
     }
 }
 void Evita4_vent::parse_data_response_measured(std::vector<byte> &packetbuffer, byte type){
     unsigned long framelen = packetbuffer.size();
+    unsigned long int grp_timestamp = std::time(nullptr);;
     if (framelen != 0)
     {
         std::vector<byte> response;
@@ -389,14 +415,16 @@ void Evita4_vent::parse_data_response_measured(std::vector<byte> &packetbuffer, 
             }
 
             NumVal local_NumVal;
+            local_NumVal.type = type;
             local_NumVal.Timestamp = pkt_timestamp;
             local_NumVal.PhysioID = physio_id;
             local_NumVal.Value =DataValue;
+            local_NumVal.timestamp = grp_timestamp;
 
             numval_list.push_back(local_NumVal);
             header_list.push_back(physio_id);
         }
-
+        /*
         if(type == poll_request_config_measured_data_codepage1){
             save_num_val_list_rows("MeasuredCP1");
         }
@@ -406,10 +434,9 @@ void Evita4_vent::parse_data_response_measured(std::vector<byte> &packetbuffer, 
         else if(type==poll_request_high_alarm_limits){
             save_num_val_list_rows("HighLimits");
         }
-        numval_list.clear();
+        numval_list.clear();*/
     }
 }
-
 void Evita4_vent::parse_alarm(std::vector<byte> &packetbuffer){
     unsigned long framelen = packetbuffer.size();
     if (framelen != 0)
@@ -430,13 +457,31 @@ void Evita4_vent::parse_alarm(std::vector<byte> &packetbuffer){
             local_alarm.AlarmCode = AlarmCode;
             local_alarm.AlarmPhrase =AlarmPhase;
             local_alarm.Priority = std::to_string(priority);
+            local_alarm.timestamp = std::time(nullptr);
 
             alarm_list.push_back(local_alarm);
         }
-        save_alarm_list_rows("Alarm");
-        alarm_list.clear();
+        //save_alarm_list_rows();
+        //alarm_list.clear();
     }
 }
+
+void Evita4_vent::save_data(){
+    save_alarm_list_rows();
+    if(numval_list.size()!=0){
+        if(numval_list[0].type==poll_request_config_measured_data_codepage1){
+            save_num_val_list_rows("MeasuredCP1");
+        }
+        else if(numval_list[0].type==poll_request_low_alarm_limits){
+            save_num_val_list_rows("AlarmLow");
+        }
+        else if(numval_list[0].type==poll_request_high_alarm_limits){
+            save_num_val_list_rows("AlarmHigh");
+        }
+    }
+
+}
+
 void Evita4_vent::parse_realtime_data_configs(std::vector<byte> &packetbuffer){
     unsigned long framelen = packetbuffer.size();
     if (framelen != 0)
@@ -469,7 +514,7 @@ void Evita4_vent::parse_realtime_data_configs(std::vector<byte> &packetbuffer){
             local_cfg.id = physio_id;
 
             int interval = 0;
-            for(int n=0;n<Interval.length();n++){
+            for(uint n=0;n<Interval.length();n++){
                 if(Interval[Interval.length()-1-n]==0x20)
                     break;
                 else{
@@ -479,7 +524,7 @@ void Evita4_vent::parse_realtime_data_configs(std::vector<byte> &packetbuffer){
             local_cfg.interval = interval;
 
             int minimal_v = 0;
-            for(int n=0;n<MinimalV.length();n++){
+            for(uint n=0;n<MinimalV.length();n++){
                 if(MinimalV[MinimalV.length()-1-n]==0x20 || MinimalV[MinimalV.length()-1-n]==0x2D)
                     break;
                 else{
@@ -491,7 +536,7 @@ void Evita4_vent::parse_realtime_data_configs(std::vector<byte> &packetbuffer){
             local_cfg.minimal_val = minimal_v;
 
             int maximal_v = 0;
-            for(int n=0;n<MaximalV.length();n++){
+            for(uint n=0;n<MaximalV.length();n++){
                 if(MaximalV[MaximalV.length()-1-n]==0x20 || MaximalV[MaximalV.length()-1-n]==0x2D)
                     break;
                 else{
@@ -503,7 +548,7 @@ void Evita4_vent::parse_realtime_data_configs(std::vector<byte> &packetbuffer){
             local_cfg.maximal_val = maximal_v;
 
             int max_bin = 0;
-            for(int n=0;n<MaxBin.length();n++){
+            for(uint n=0;n<MaxBin.length();n++){
                 if(MaxBin[MaxBin.length()-1-n]==' ')
                     break;
                 else{
@@ -533,7 +578,7 @@ void Evita4_vent::parse_realtime_data(std::vector<byte> &packetbuffer){
         for(int i=0;i<responselen;i=i+2){
             std::vector<byte> DataValue(response.begin()+i,response.begin()+2+i);
             if((DataValue[0] & 0xc0) == 0x80){ // sync data
-                while(sync_byte&(0x01<<value_index)==1)
+                while((sync_byte) &((0x01<<value_index)==1))
                 {
                     byte datacode = realtime_data_list[value_index];
                     physio_id = RealtimeConfigs.find(datacode)->second;
@@ -542,7 +587,7 @@ void Evita4_vent::parse_realtime_data(std::vector<byte> &packetbuffer){
                     int value = int(front_num)+int(back_num)*(64);
                     float value2=0;
 
-                    for(int j=0;j<cfg_list.size();j++){
+                    for(uint j=0;j<cfg_list.size();j++){
                         if(cfg_list[j].id == physio_id){
                             value2 = cfg_list[j].minimal_val+value*(cfg_list[j].maximal_val-cfg_list[j].minimal_val)/float(cfg_list[j].max_bin);
                             break;
@@ -565,8 +610,8 @@ void Evita4_vent::parse_realtime_data(std::vector<byte> &packetbuffer){
                 //TODO::deal with sync command
             }
         }
-        save_num_val_list_rows("RealtimeData");
-        numval_list.clear();
+        //save_num_val_list_rows("RealtimeData");
+        //numval_list.clear();
     }
 }
 void Evita4_vent::write_buffer(std::vector<byte> cmd){
@@ -602,62 +647,79 @@ void Evita4_vent::command_echo_response(std::vector<byte>& cmd){
 
 void Evita4_vent::save_num_val_list_rows(std::string datatype){
     if(numval_list.size()!=0){
-        std::time_t result = std::time(nullptr);
-        std::string pkt_timestamp =std::asctime(std::localtime(&result));
+        std::time_t current_pc_time = std::time(nullptr);
+        std::string pkt_timestamp =std::asctime(std::localtime(&current_pc_time));
         pkt_timestamp.erase(8,11);
 
         QString filename = pathcsv + QString::fromStdString(pkt_timestamp) + QString::fromStdString(datatype)+".csv";
         write_num_header_list(datatype, filename);
 
         std::string row;
+        bool changed=false;
+        int elementcount=0;
+
         row+=(numval_list[0].Timestamp);
         row.append(",");
 
-        for(int i=0;i<numval_list.size();i++){
-            row+=(numval_list[i].Value);
-            row.append(",");
+        for(uint i=0;i<numval_list.size();i++){
+            if(current_pc_time>(numval_list[i].timestamp+timelapse)
+                && numval_list[i].timestamp==numval_list[0].timestamp){
+                elementcount+=1;
+                changed=true;
+                row+=(numval_list[i].Value);
+                row.append(",");
+            }
         }
         row.append("\n");
-        QFile myfile(filename);
-        if (myfile.open(QIODevice::Append)) {
-            myfile.write((char*)&row[0], row.length());
-
+        if(changed){
+            QFile myfile(filename);
+            if (myfile.open(QIODevice::Append)) {
+                myfile.write((char*)&row[0], row.length());
+            }
+            qDebug()<<"write data to file";
+            numval_list.erase(numval_list.begin(), numval_list.begin()+elementcount);
         }
-        //qDebug()<<"write data to file";
+
     }
 }
-void Evita4_vent::save_alarm_list_rows(std::string datatype){
+
+void Evita4_vent::save_alarm_list_rows(){
     if(alarm_list.size()!=0){
-        std::time_t result = std::time(nullptr);
-        std::string pkt_timestamp =std::asctime(std::localtime(&result));
+        std::time_t current_pc_time = std::time(nullptr);
+        std::string pkt_timestamp =std::asctime(std::localtime(&current_pc_time));
         pkt_timestamp.erase(8,11);
 
-        QString filename = pathcsv + QString::fromStdString(pkt_timestamp) + QString::fromStdString(datatype)+".csv";
+        QString filename = pathcsv + QString::fromStdString(pkt_timestamp) + QString::fromStdString("Alarm")+".csv";
 
         std::string row;
-        //row+=(alarm_list[0].Timestamp);
-        //row.append(",");
+        bool changed=false;
+        int elementcount=0;
 
-        for(int i=0;i<alarm_list.size();i++){
-            row+=(alarm_list[i].Timestamp);
-            row.append(",");
-            row+=(alarm_list[i].AlarmCode);
-            row.append(",");
-            row+=(alarm_list[i].Priority);
-            row.append(",");
-            row+=(alarm_list[i].AlarmPhrase);
-            row.append(",\n");
+        for(uint i=0;i<alarm_list.size();i++){
+            if(current_pc_time>(alarm_list[i].timestamp+timelapse) &&alarm_list[i].timestamp==alarm_list[0].timestamp){
+                elementcount+=1;
+                changed=true;
+                row+=(alarm_list[i].Timestamp);
+                row.append(",");
+                row+=(alarm_list[i].AlarmCode);
+                row.append(",");
+                row+=(alarm_list[i].Priority);
+                row.append(",");
+                row+=(alarm_list[i].AlarmPhrase);
+                row.append(",\n");
+            }
         }
         row.append("\n");
-        QFile myfile(filename);
-        if (myfile.open(QIODevice::Append)) {
-            myfile.write((char*)&row[0], row.length());
-
+        if(changed){
+            QFile myfile(filename);
+            if (myfile.open(QIODevice::Append)) {
+                myfile.write((char*)&row[0], row.length());
+            }
+            qDebug()<<"write alarm to file";
+            alarm_list.erase(alarm_list.begin(), alarm_list.begin()+elementcount);
         }
-        qDebug()<<"write alarm to file";
     }
 }
-
 
 void Evita4_vent::write_num_header_list(std::string datatype, QString filename){
     if(write_header_for_data_type(datatype)){
@@ -667,8 +729,11 @@ void Evita4_vent::write_num_header_list(std::string datatype, QString filename){
         header.append(",");
 
         for(unsigned long i=0;i<numval_list.size();i++){
+            if(numval_list[i].timestamp==numval_list[0].timestamp){
                 header+=numval_list[i].PhysioID;
                 header.append(",");
+            }
+
         }
         header.append("\n");
         QFile myfile(filename);

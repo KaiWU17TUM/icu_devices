@@ -33,9 +33,11 @@ typedef unsigned char byte;
 //const std::vector<unsigned char> realtime_transmission_request {0x54, 0x30, 0x30, 0x30, 0x32, 0x30, 0x36, 0x30,0x33};
 
 struct NumVal{
+    unsigned int type;
     std::string Timestamp;
     std::string PhysioID;
     std::string Value;
+    unsigned long int timestamp;
 };
 
 struct AlarmInfo{
@@ -43,6 +45,7 @@ struct AlarmInfo{
     std::string AlarmPhrase;
     std::string Priority;
     std::string AlarmCode;
+    unsigned long int timestamp;
 };
 
 struct RealtimeCfg{

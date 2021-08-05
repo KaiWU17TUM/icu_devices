@@ -12,6 +12,7 @@
 #include <QTimer>
 #include <iostream>
 #include <math.h>
+#include "QThread"
 class Evita4_vent: public Device
 {  
     Q_OBJECT
@@ -30,6 +31,8 @@ private:
     QTimer *timer_cp3;
     QTimer *timer_cp4;
     QTimer *timer_cp5;
+    QTimer *timer_cp6;
+//    unsigned long int timelapse;
 
     QString pathcsv = QDir::currentPath() + "/../icu_devices/data/draeger_evita4/";
     bool free_flag = true;
@@ -59,8 +62,7 @@ private:
 
     Q_DISABLE_COPY(Evita4_vent);
     void add_checksum(std::vector<byte>& payload);
-    //void create_frame_list_from_byte(byte b);
-    //void read_packet_from_frame();
+
     void command_echo_response(std::vector<byte>& cmd);
     void parse_data_response_measured(std::vector<byte> &packetbuffer, byte type);
     void parse_data_device_settings(std::vector<byte> &packetbuffer);
@@ -71,9 +73,10 @@ private:
     bool write_header_for_data_type(std::string datatype);
     void write_num_header_list(std::string datatype, QString filename);
     void save_num_val_list_rows(std::string datatype);
-    void save_alarm_list_rows(std::string datatype);
+    void save_alarm_list_rows();
 
 public slots:
+    void save_data();
     void process_buffer();
     void request_icc(){if(free_flag){free_flag=false;this->write_buffer({poll_request_icc_msg});}}
     void request_dev_id(){if(free_flag){free_flag=false;this->write_buffer({poll_request_deviceid});}}

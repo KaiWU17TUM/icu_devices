@@ -7,6 +7,7 @@
 #include <QFile>
 #include <iostream>
 #include <math.h>
+#include <QTimer>
 #include <ctime>
 #include <sstream>
 #include <iomanip>
@@ -22,11 +23,14 @@ public:
     ~GE_Monitor(){};
 
 private:
+    int delay_c = 0;
+    QTimer *timer_cp1;
     bool m_fstart = true;
     bool m_storestart = false;
     bool m_storeend = false;
     bool m_bitschiftnext = false;
     std::string machine_timestamp;
+    unsigned long int pkg_timestamp;
     std::time_t pc_time;
     std::string m_DeviceID = "GE_Monitor";
     bool m_transmissionstart = true;
@@ -41,7 +45,7 @@ private:
 
     void request_phdb_transfer(int interval);
     void request_wave_transfer(std::vector<byte> wave_id);
-    void tx_buffer(byte* payload, int length);
+    void write_buffer(byte* payload, int length);
 
     void create_frame_list_from_byte(byte b);
     void read_packet_from_frame();
@@ -62,6 +66,7 @@ private:
 
 public slots:
     void process_buffer();
+    void save_data();
 
 };
 
@@ -72,6 +77,7 @@ struct NumericValResult
     std::string PhysioID;
     std::string Value;
     std::string DeviceID;
+    unsigned long int timestamp;
 };
 
 struct  WaveValResult
@@ -91,5 +97,6 @@ struct  AlarmResult
     std::string text;
     std::string color;
     std::string sound;
+    unsigned long int timestamp;
 };
 #endif // GE_MONITOR_H

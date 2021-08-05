@@ -273,6 +273,7 @@ const std::map<std::string, std::string> AdditionalParameters2{
 
 struct NumValB{
     std::string Timestamp;
+    unsigned long int timestamp;
     std::string Relativetime;
     std::string Address;
     std::string Parametertype;
