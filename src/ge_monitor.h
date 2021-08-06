@@ -30,11 +30,13 @@ private:
     bool m_storeend = false;
     bool m_bitschiftnext = false;
     std::string machine_timestamp;
-    unsigned long int pkg_timestamp;
+
+    std::string pkt_timestamp;
+
     std::time_t pc_time;
     std::string m_DeviceID = "GE_Monitor";
     bool m_transmissionstart = true;
-    QString pathcsv = QDir::currentPath()+"/../icu_devices/data/ge_monitor_b650/";
+    QString pathcsv = QDir::currentPath() + "/../tmp/";
     std::vector<struct NumericValResult> m_NumericValList;
     std::vector<struct WaveValResult> m_WaveValList;
     std::vector<struct AlarmResult> m_AlarmList;
@@ -74,16 +76,17 @@ public slots:
 struct NumericValResult
 {
     std::string Timestamp;
+    unsigned long int timestamp;
     std::string PhysioID;
     std::string Value;
     std::string DeviceID;
-    unsigned long int timestamp;
 };
 
 struct  WaveValResult
 {
     std::string Timestamp;
     std::vector<unsigned long int> TimeList;
+    unsigned long int timestamp;
     std::string PhysioID;
     std::vector<short> Value;
     std::string DeviceID;
@@ -94,9 +97,9 @@ struct  WaveValResult
 struct  AlarmResult
 {
     std::string Timestamp;
+    unsigned long int timestamp;
     std::string text;
     std::string color;
     std::string sound;
-    unsigned long int timestamp;
 };
 #endif // GE_MONITOR_H

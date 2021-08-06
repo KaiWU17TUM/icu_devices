@@ -64,6 +64,9 @@ printf "\n${GREEN}==============================================================
 printf "Finish initialization\n"
 printf "================================================================================${NC}\n\n"
 
-# printf "${BLUE}Start the program to acquire data from devices ${NC}"
-# ./../../build-ICU_devices-Desktop-Debug/ICU_devices
+printf "${BLUE}Start the program to acquire data from devices ${NC}"
+printf "${BLUE}Start the program to acquire data from realsense ${NC}"
+
+./../../build-icu_devices-Desktop-Debug/icu_devices & python /home/kai/workspace/DHM-ICU/biometricID/python/capture_stream.py
+
 

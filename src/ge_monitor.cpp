@@ -23,8 +23,11 @@ void GE_Monitor::start(){
         std::cout<<"Reset wave transfer";
         request_wave_stop();
 
+        std::cout<<"Try to get data from GE Monitor"<<std::endl;
+
         // Set the period of phdb data
-        int phdb_interval = 10;
+        int phdb_interval = 1;
+
         // Set the wave that you want to retrieve
         std::vector<byte> wave_ids = {1, 8};
 
@@ -350,13 +353,20 @@ void GE_Monitor::read_packet_from_frame(){
                         (phdata_ptr.physdata.ext3) = *(struct datex::ext3_phdb*)buffer;
                         break;
                 }
+
+                // get time
+                std::time_t result = std::time(nullptr);
+                pkt_timestamp = std::asctime(std::localtime(&result));
+                pkt_timestamp.erase(pkt_timestamp.end()-1);
+
+                /*
                 std::time_t temp = unixtime;
                 pkg_timestamp = std::time(nullptr);
                 std::tm* t = std::gmtime(&temp);
                 std::stringstream ss;
                 ss << std::put_time(t, "%Y-%m-%d %I:%M:%S %p");
-                machine_timestamp = ss.str();
-
+                machine_timestamp = ss.str();*/
+                machine_timestamp = pkt_timestamp;
                 save_basic_sub_record(phdata_ptr);
                 save_ext1_and_ext2_and_ext3_record(phdata_ptr);
 
@@ -400,8 +410,13 @@ void GE_Monitor::read_packet_from_frame(){
                 std::tm* t = std::gmtime(&temp);
                 std::stringstream ss;
                 ss << std::put_time(t, "%Y-%m-%d %I:%M:%S %p");
+                std::time_t result = std::time(nullptr);
+                pkt_timestamp = std::asctime(std::localtime(&result));
+                pkt_timestamp.erase(pkt_timestamp.end()-1);
 
-                wave_val.Timestamp = ss.str();
+                wave_val.Timestamp = pkt_timestamp;
+                wave_val.timestamp = result;
+                //wave_val.Timestamp = ss.str();
                 wave_val.TimeList = TimeList;
                 std::string physioId = datex::WaveIdLabels.find(record.hdr.sr_desc[j].sr_type)->second;
                 wave_val.PhysioID = physioId;
@@ -430,9 +445,15 @@ void GE_Monitor::read_packet_from_frame(){
                 std::stringstream ss;
                 ss << std::put_time(t, "%Y-%m-%d %I:%M:%S %p");
                 AlarmResult alarm[5];
+                std::time_t result = std::time(nullptr);
+                pkt_timestamp = std::asctime(std::localtime(&result));
+                pkt_timestamp.erase(pkt_timestamp.end()-1);
 
                 for(int n=0; n<5; n++){
-                    alarm[n].Timestamp = ss.str();
+                    //alarm[n].Timestamp = ss.str();
+                     alarm[n].Timestamp = pkt_timestamp;
+                     alarm[n].timestamp = result;
+
                     alarm[n].text = std::string(dri_al_msg_ptr.al_disp[n].text);
                     for(uint m=0;m<alarm[n].text.length();m++){
                         if(alarm[n].text[m]=='\n'){
@@ -455,7 +476,7 @@ void GE_Monitor::read_packet_from_frame(){
                         alarm[n].color = "DRI_PR3";
                         break;
                 }
-                alarm[n].timestamp = pkg_timestamp;
+                alarm[n].timestamp = std::time(nullptr);
                 if(dri_al_msg_ptr.al_disp[n].text_changed==1){
                     m_AlarmList.push_back(alarm[n]);
                 }
@@ -517,6 +538,9 @@ void GE_Monitor::save_alarm_to_csv(){
         std::string pkt_timestamp =std::asctime(std::localtime(&pc_current_timestamp));
         pkt_timestamp.erase(8,11);
 
+        pkt_timestamp.pop_back();
+
+
         QString filename =  pathcsv + QString::fromStdString(pkt_timestamp) + "_Alarm.csv";
 
         std::string row;
@@ -528,6 +552,8 @@ void GE_Monitor::save_alarm_to_csv(){
             changed = true;
             elementcount+=1;
             row.append(m_AlarmList[i].Timestamp);
+            row.append(",");
+            row.append(std::to_string(m_AlarmList[i].timestamp));
             row.append(",");
             row.append( m_AlarmList[i].text);
             row.append(",");
@@ -553,7 +579,7 @@ void GE_Monitor::save_wave_to_csv(){
         std::time_t current_pc_timestamp = std::time(nullptr);
         std::string pkt_timestamp =std::asctime(std::localtime(&current_pc_timestamp));
         pkt_timestamp.erase(8,11);
-
+        pkt_timestamp.pop_back();
         QString filename =  pathcsv + QString::fromStdString(pkt_timestamp) + QString::fromStdString(m_WaveValList[i].PhysioID) + ".csv";
 
         double decimalshift = m_WaveValList[i].Unitshift;
@@ -774,10 +800,11 @@ void GE_Monitor::validate_add_data(std::string physio_id, short value, double de
     struct NumericValResult NumVal;
 
     NumVal.Timestamp = machine_timestamp;
+    NumVal.timestamp = std::time(nullptr);
     NumVal.PhysioID = physio_id;
     NumVal.Value = valuestr;
     NumVal.DeviceID = m_DeviceID;
-    NumVal.timestamp = pkg_timestamp;
+
 
     m_NumericValList.push_back(NumVal);
     m_NumValHeaders.push_back(NumVal.PhysioID);
@@ -790,12 +817,16 @@ void GE_Monitor::write_to_rows(){
         std::time_t current_pc_time = std::time(nullptr);
         std::string pkt_timestamp =std::asctime(std::localtime(&current_pc_time));
         pkt_timestamp.erase(8,11);
+        pkt_timestamp.pop_back();
+
         QString filename = pathcsv + QString::fromStdString(pkt_timestamp) + "PHDB_data.csv";
 
         write_to_file_header(filename);
         std::string row;
         row.append("\n");
         row.append(m_NumericValList[0].Timestamp);
+        row.append(",");
+        row.append(std::to_string(m_NumericValList[0].timestamp));
         row.append(",");
         bool changed=false;
         int elementcount=0;
@@ -828,6 +859,8 @@ void GE_Monitor::write_to_file_header(QString filename)
     {
         std::string headers;
         headers.append("Time");
+        headers.append(",");
+        headers.append("time");
         headers.append(",");
 
 

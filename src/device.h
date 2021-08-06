@@ -17,7 +17,7 @@ class Device: public QObject
 public:
      Device();
      MySerialPort* local_serial_port;
-     unsigned long int timelapse = 60*20;
+     unsigned long int timelapse = 0;
 
     virtual void start(){};
     void try_to_open_port();

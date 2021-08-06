@@ -12,16 +12,14 @@ int main(int argc, char *argv[])
     // GE,Draeger,BBraun => USB2,4,5
 
     // Uncomment the following lines to enable or disable the data retrieving from hardwares
-     Bbraun my_perfusor;
-     my_perfusor.start();
-
-
      GE_Monitor my_monitor;
      my_monitor.start();
 
-
     // Evita4_vent my_evita4_vent;
     // my_evita4_vent.start();
+
+    //Bbraun my_perfusor;
+    //my_perfusor.start();
 
     /****************************************************************************************************************************/
     //Codes below are for debugging purpose, please ignore them
