@@ -24,9 +24,9 @@ More detail can be found in following documents.
 
 ## Working pattern
 <br />
-<img src="./imgs/GE_Monitor_workflow.png", width="500" >
+<img src="./imgs/ge_monitor_request.png", width="500" >
 
-## Requests
+## Sending Requests
 <br />
 
 ### Type 1 : Physiological data (PHDB data)
@@ -158,3 +158,9 @@ Here you need to fill which waveform you want to get, the code number for each t
 
     pRequest->type[0] = DRI_WF_ECG1;
     pRequest->type[1] = DRI_EOL_SUBR_LIST;
+
+## Processing and parsing data
+<br />
+<img src="./imgs/ge_monitor_receive.png", width="700" >
+
+**All timestamps are from PC**

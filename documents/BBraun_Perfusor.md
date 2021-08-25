@@ -8,7 +8,7 @@ This BCC communication protocol sends polling request to the perfusor. The reque
 
 <img src="./imgs/perfusor_poll.png">
 
-The data might need to be transferred separately into separated packets, the PC will reply *ACK* message to each reveived packet.
+The whole reply to the request might need to be transferred separately into separated packets, the PC will reply *ACK* message to each reveived packet.
 
 * We can get the following types of data from the device:
 1. SpaceCom Framework related information (address of  the device)
@@ -35,3 +35,7 @@ The data might need to be transferred separately into separated packets, the PC 
             qDebug()<<"Error opening/writing to serial port "<<e.what();
         }
     }
+
+## Receive
+<br/>
+<img src="./imgs/bbraun_receive.png">

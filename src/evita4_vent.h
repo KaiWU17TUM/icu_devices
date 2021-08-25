@@ -26,12 +26,12 @@ public:
 
 
 private:
-    QTimer *timer_cp1;
-    QTimer *timer_cp2;
-    QTimer *timer_cp3;
-    QTimer *timer_cp4;
-    QTimer *timer_cp5;
-    QTimer *timer_cp6;
+    QTimer *alarm_low_limit_timer;
+    QTimer *alarm_high_limit_timer;
+    QTimer *alarm_codebook1_timer;
+    QTimer *alarm_codebook2_timer;
+    QTimer *measurement_timer;
+    QTimer *logger_timer;
 //    unsigned long int timelapse;
 
     QString pathcsv = QDir::currentPath() + "/../icu_devices/data/draeger_evita4/";

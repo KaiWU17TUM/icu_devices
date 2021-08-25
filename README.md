@@ -67,4 +67,6 @@ Evita4_vent
 
 There is a function called **start()** for all ICU_devices classes.
 
-This is the main working loop for the device. You can change the request and period. More detailed descriptions are found in documents folder.
+This is the main working loop for retrieving data from the device. You can change the request and period. More detailed descriptions are found in documents folder. The processed and parsed data are added into lists for specific packet.
+
+Since in the real world it is required that the data cannot be saved into readable format in a real time manner. We need to add a delay (20 minutes for example) between the saving and receiving. Therefore we implemented a logger_timer who wakes up periodically and check if the timestamps of the data in the list is "old enough", it saves packet which expires the delay into csv files and remove it from the list.

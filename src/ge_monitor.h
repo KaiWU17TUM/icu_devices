@@ -24,16 +24,13 @@ public:
 
 private:
     int delay_c = 0;
-    QTimer *timer_cp1;
+    QTimer *logger_timer;
     bool m_fstart = true;
     bool m_storestart = false;
     bool m_storeend = false;
     bool m_bitschiftnext = false;
     std::string machine_timestamp;
-
     std::string pkt_timestamp;
-
-    std::time_t pc_time;
     std::string m_DeviceID = "GE_Monitor";
     bool m_transmissionstart = true;
     QString pathcsv = QDir::currentPath() + "/../tmp/";
@@ -41,17 +38,14 @@ private:
     std::vector<struct WaveValResult> m_WaveValList;
     std::vector<struct AlarmResult> m_AlarmList;
     std::vector<std::string> m_NumValHeaders;
-
     std::vector<std::vector<unsigned char>>frame_buffer;
     std::vector<unsigned char>b_list;
 
     void request_phdb_transfer(int interval);
     void request_wave_transfer(std::vector<byte> wave_id);
     void write_buffer(byte* payload, int length);
-
     void create_frame_list_from_byte(byte b);
     void read_packet_from_frame();
-
     void validate_add_data(std::string physio_id, short value, double decimalshift, bool rounddata);
     std::string validate_wave_data(short value, double decimalshift, bool rounddata);
     void save_basic_sub_record(datex::dri_phdb driSR);
@@ -72,7 +66,6 @@ public slots:
 
 };
 
-/*******************/
 struct NumericValResult
 {
     std::string Timestamp;

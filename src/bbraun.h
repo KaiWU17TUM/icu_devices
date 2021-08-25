@@ -20,12 +20,11 @@ public:
     void start();
     ~Bbraun(){};
 private:
-    //unsigned long int timelapse;
     std::map<std::string, std::string> GeneralParameters;
     std::map<std::string, std::string> InfusionPumpParameters;
     std::map<std::string, std::string> AdditionalParameters;
-    QTimer *timer_cp1;
-    QTimer *timer_cp2;
+    QTimer *request_timer;
+    QTimer *logger_timer;
     std::vector<byte> m_bedid;
     QString pathcsv = QDir::currentPath()+"/../icu_devices/data/bbraun_perfusor/";
     bool ack_flag = false;
@@ -45,16 +44,13 @@ private:
     std::vector<std::string> header_list;
 
     void write_buffer(std::vector<byte> bedid, std::vector<byte> txbuf);
-
     byte compute_checksum(std::vector<byte> bytes);
     void create_frame_list_from_byte(unsigned char b);
     void int_save_to_buffer(int integer, std::vector<byte> &bytes);
     void send_ack();
     void request_initialize_connection();
-
     void read_packet_from_frame();
     std::vector<std::string> split_string(std::string s, byte delimiter);
-
     void save_num_value_list_row(std::string datatype);
     bool write_header_for_data_type(std::string datatype);
     void write_num_header_list(std::string datatype, QString filename);
@@ -63,7 +59,6 @@ private slots:
     void save_num_values_by_type();
     void process_buffer();
     void send_get_mem_request();
-
 };
 
 #endif // BBRAUN_H

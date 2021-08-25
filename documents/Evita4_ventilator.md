@@ -63,3 +63,7 @@ A more detailed description for measured data is found in page 17 of ducument *i
 
 ### Type 2 request (Realtime data)
 * This request is used to receive waveform data. This request is not designed to run simutaneously with the type 1 request, since the mixed responses cannot be decoded.
+
+## Request
+<br/>
+<img src="./imgs/evita_receive.png">

@@ -65,6 +65,7 @@ void Evita4_vent::start(){
         QThread::sleep(1);
         measurement_timer->start(3000);
         logger_timer->start(1000);
+        
     }  catch (const std::exception& e) {
         qDebug()<<"Error opening/writing to serial port "<<e.what();
     }

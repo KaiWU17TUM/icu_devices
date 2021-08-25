@@ -1,11 +1,11 @@
 #include "bbraun.h"
 
+
 Bbraun::Bbraun()
 {
     GeneralParameters = GeneralParameters2;
     InfusionPumpParameters = InfusionPumpParameters2;
     AdditionalParameters = AdditionalParameters2;
-
     local_serial_port = new MySerialPort();
     local_serial_port->serial->setPortName("/dev/ttyUSB2");
     local_serial_port->serial->setBaudRate(QSerialPort::Baud19200);
@@ -16,10 +16,10 @@ Bbraun::Bbraun()
     QObject::connect(local_serial_port->serial, SIGNAL(readyRead()), this, SLOT(process_buffer()));
 
     // Bind the timer with GET_MEM request, which should be sent to the device periodically
-    timer_cp1 = new QTimer();
-    connect(timer_cp1, SIGNAL(timeout()), this, SLOT(send_get_mem_request()));
-    timer_cp2 = new QTimer();
-    connect(timer_cp2, SIGNAL(timeout()), this, SLOT(save_num_values_by_type()));
+    request_timer = new QTimer();
+    connect(request_timer, SIGNAL(timeout()), this, SLOT(send_get_mem_request()));
+    logger_timer = new QTimer();
+    connect(logger_timer, SIGNAL(timeout()), this, SLOT(save_num_values_by_type()));
 }
 
 /**
@@ -29,16 +29,14 @@ void Bbraun::start(){
     try {
         std::cout<<"Try to open the serial port for Bbraun perfusor"<<std::endl;
         try_to_open_port();
-
         std::cout<<"Initialize the connection with "<<std::endl;
         request_initialize_connection();
 
-        int period = 5000; //unit ms
-        timer_cp1->start(period);
-        period = 3000; //unit ms
-        timer_cp2->start(period);
-
-    }  catch (const std::exception& e) {
+        int period = 5000; //set the period of GET_MEM request
+        request_timer->start(period);
+        period = 3000; //set the period of logger
+        logger_timer->start(period);
+    }catch (const std::exception& e) {
         qDebug()<<"Error opening/writing to serial port "<<e.what();
     }
 }
@@ -53,13 +51,9 @@ void Bbraun::process_buffer(){
         for (int i = 0; i < data.size(); ++i) {
             create_frame_list_from_byte(data[i]);
         }
-        //if there is content received
         if(frame_buffer.size() > 0){
-            // parse the raw content
             read_packet_from_frame();
             frame_buffer.clear();
-            // save parsed content
-            //save_num_values_by_type();
         }
     }catch (const std::exception& e) {
         qDebug()<<e.what();
@@ -169,7 +163,6 @@ void Bbraun::read_packet_from_frame(){
         pkt_timestamp = std::asctime(std::localtime(&result));
         pkt_timestamp.erase(pkt_timestamp.end()-1);
 
-        //
         std::string str(frame_buffer[i].begin(), frame_buffer[i].end());
         std::size_t pos_1 = str.find(">");
         std::size_t pos_2 = str.find(ETBCHAR);
@@ -222,7 +215,6 @@ void Bbraun::read_packet_from_frame(){
                 }
             }
 
-
             //save the parsed data into list
             NumValB numval;
             numval.Timestamp = pkt_timestamp;
@@ -248,10 +240,8 @@ void Bbraun::write_buffer(std::vector<byte> bedid, std::vector<byte> txbuf){
     temptxbuff.push_back(SOHCHAR);
     //deal with length
     int totalframelen = 15 + bedid.size() + txbuf.size();
-
     int_save_to_buffer(totalframelen, temptxbuff);
     temptxbuff.push_back(STXCHAR);
-
     for(unsigned long i=0;i<bedid.size();i++){
         temptxbuff.push_back(bedid[i]);
     }
@@ -320,6 +310,7 @@ void Bbraun::send_ack(){
     qDebug()<<"sending ACK";
     this->local_serial_port->serial->write(payload_data, temptxbuff.size());
 }
+
 /**
  * @brief Bbraun::send_get_mem_request : with this request the host asks for all actual parameter values of the ComDevice / pumps
  */
@@ -329,7 +320,6 @@ void Bbraun::send_get_mem_request(){
     qDebug()<<"sending get mem request";
     write_buffer(bedid, command);
 }
-
 
 /**
  * @brief Saving functions : call these function to save parsed data
@@ -488,6 +478,7 @@ void  Bbraun::int_save_to_buffer(int integer, std::vector<byte> &bytes){
         bytes.push_back(length_buffer[5-i]);
     }
 }
+
 std::vector<std::string> Bbraun::split_string(std::string s, byte delimiter){
     size_t pos = 0;
     std::string token;

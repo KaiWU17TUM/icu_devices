@@ -1,5 +1,7 @@
 #include "ge_monitor.h"
 #include "QThread"
+
+
 GE_Monitor::GE_Monitor()
 {
     local_serial_port = new MySerialPort();
@@ -10,11 +12,14 @@ GE_Monitor::GE_Monitor()
     local_serial_port->serial->setStopBits(QSerialPort::OneStop);
     local_serial_port->serial->setFlowControl(QSerialPort::HardwareControl);
     QObject::connect(local_serial_port->serial, SIGNAL(readyRead()), this, SLOT(process_buffer()));
-    timer_cp1 = new QTimer();
-    connect(timer_cp1, SIGNAL(timeout()), this, SLOT(save_data()));
+
+    logger_timer = new QTimer();
+    connect(logger_timer, SIGNAL(timeout()), this, SLOT(save_data()));
 }
 
-
+/**
+ * @brief GE_Monitor::start : the main configuration part of GE_Monitor
+ */
 void GE_Monitor::start(){
     try {
         std::cout<<"Try to open the serial port for GE Monitor"<<std::endl;
@@ -23,20 +28,18 @@ void GE_Monitor::start(){
         std::cout<<"Reset wave transfer";
         request_wave_stop();
 
-        std::cout<<"Try to get data from GE Monitor"<<std::endl;
-
-        // Set the period of phdb data
-        int phdb_interval = 1;
-
-        // Set the wave that you want to retrieve
-        std::vector<byte> wave_ids = {1, 8};
-
-        std::cout<<"Try to get data from GE Monitor"<<std::endl;
-        request_alarm_transfer(); // send the alarm transfer request, default into differential mode
+        // Set the period of phdb data, minimal interval is 5
+        int phdb_interval = 5;
         request_phdb_transfer(phdb_interval); // send the phdb data transfer request
+
+        // Set the wave that you want to retrieve, make sure the sum of samples/sec is smaller than 600
+        std::vector<byte> wave_ids = {1, 8};
         request_wave_transfer(wave_ids); // send the wave transfer request
-        int period = 3000; //unit ms
-        timer_cp1->start(period);
+
+        request_alarm_transfer(); // send the alarm transfer request, default into differential mode
+
+        int period = 3000; // set the logging frequency
+        logger_timer->start(period); // start the logger
 
     } catch (const std::exception& e) {
         qDebug()<<"Error opening/writing to serial port "<<e.what();
@@ -148,7 +151,6 @@ void GE_Monitor::request_wave_transfer(std::vector<byte> wave_id){
     int length = sizeof(requestPkt);
     //return payload
     write_buffer(payload,length);
-
 }
 
 /**
@@ -180,10 +182,11 @@ void GE_Monitor::request_wave_stop(){
     int length = sizeof(requestPkt);
     //return payload
     write_buffer(payload,length);
-
 }
 
-
+/**
+ * @brief GE_Monitor::write_buffer : call this wrapper function to format msg and send it out
+ */
 void GE_Monitor::write_buffer(byte* payload, int length){
     byte checksum=0;
     std::vector<byte> temptxbuff;
@@ -232,8 +235,6 @@ void GE_Monitor::write_buffer(byte* payload, int length){
     temptxbuff.push_back(0x7e);
     const char* payload_data = (const char*)&temptxbuff[0];
     this->local_serial_port->serial->write(payload_data, temptxbuff.size());
-
-
 }
 
 /**
@@ -244,13 +245,12 @@ void GE_Monitor::process_buffer(){
     for (int i = 0; i < data.size(); ++i) {
         create_frame_list_from_byte(data[i]);
     }
-   // if((frame_buffer).size()>200){
-      if(frame_buffer.size()>0){
-            read_packet_from_frame();
-            frame_buffer.clear();
-      }
-    //}
+    if(frame_buffer.size()>0){
+        read_packet_from_frame();
+        frame_buffer.clear();
+    }
 }
+
 /**
  * @brief GE_Monitor::create_frame_list_from_byte : call this function to get raw packet out from serial data
  */
@@ -272,7 +272,6 @@ void GE_Monitor::create_frame_list_from_byte(byte b){
         //encounter control byte
         if(b==0x7d)
             m_bitschiftnext = true;
-
         //normal byte
         else{
             //the byte before is a control byte
@@ -330,7 +329,8 @@ void GE_Monitor::read_packet_from_frame(){
 
         // this is a PHDB record
         if(record.hdr.r_maintype == DRI_MT_PHDB){
-            uint unixtime = record.hdr.r_time;
+            // time from the GE_Monitor
+            //uint unixtime = record.hdr.r_time;
             struct datex::dri_phdb phdata_ptr;
 
             for(int j=0;j<8&&record.hdr.sr_desc[j].sr_type!=0xFF;j++){
@@ -354,12 +354,13 @@ void GE_Monitor::read_packet_from_frame(){
                         break;
                 }
 
-                // get time
-                std::time_t result = std::time(nullptr);
-                pkt_timestamp = std::asctime(std::localtime(&result));
+                // get time from PC
+                std::time_t pc_time = std::time(nullptr);
+                pkt_timestamp = std::asctime(std::localtime(&pc_time));
                 pkt_timestamp.erase(pkt_timestamp.end()-1);
 
                 /*
+                // Use time from GE_Monitor
                 std::time_t temp = unixtime;
                 pkg_timestamp = std::time(nullptr);
                 std::tm* t = std::gmtime(&temp);
@@ -371,18 +372,14 @@ void GE_Monitor::read_packet_from_frame(){
                 save_ext1_and_ext2_and_ext3_record(phdata_ptr);
 
             }
-            //write_to_rows();
         }
 
         // this is a WAVE record
         else if(record.hdr.r_maintype == DRI_MT_WAVE){
-            // the timestamp from machine
-            uint unixtime = record.hdr.r_time;
-
+            // the timestamp from GE_Monitor
+            // uint unixtime = record.hdr.r_time;
             // the timestamp from pc [seconds since 01-Jan-1970]
             unsigned long int pc_time = std::time(nullptr);
-
-            // for each subrecord
             for(int j=0;j<8&&record.hdr.sr_desc[j].sr_type!=0xFF;j++){
                 int offset = (int)record.hdr.sr_desc[j].sr_offset;
                 int srsamplelenbytes[2];
@@ -390,7 +387,6 @@ void GE_Monitor::read_packet_from_frame(){
                 srsamplelenbytes[1] = record.rcrd.data[offset+1];
                 int sub_header_len = 6;
                 int subrecordlen = 256*(int)srsamplelenbytes[1]+(int)srsamplelenbytes[0];
-
                 int buflen = 2*subrecordlen; //(nextoffset - offset - 6);
                 byte * buffer = (byte *)malloc(sizeof(byte)*buflen);
                 for (int j = 0; j < buflen; j++)
@@ -404,19 +400,20 @@ void GE_Monitor::read_packet_from_frame(){
                     waveValList.push_back((buffer[n+1])*256+(buffer[n]));
                     TimeList.push_back((unsigned long int)pc_time*1000+1000*(n/2)/samples);
                 }
-
                 WaveValResult wave_val;
+                /*
+                // use timestamp from GE_Monitor
                 std::time_t temp = unixtime;
                 std::tm* t = std::gmtime(&temp);
                 std::stringstream ss;
                 ss << std::put_time(t, "%Y-%m-%d %I:%M:%S %p");
+                */
                 std::time_t result = std::time(nullptr);
                 pkt_timestamp = std::asctime(std::localtime(&result));
                 pkt_timestamp.erase(pkt_timestamp.end()-1);
 
                 wave_val.Timestamp = pkt_timestamp;
                 wave_val.timestamp = result;
-                //wave_val.Timestamp = ss.str();
                 wave_val.TimeList = TimeList;
                 std::string physioId = datex::WaveIdLabels.find(record.hdr.sr_desc[j].sr_type)->second;
                 wave_val.PhysioID = physioId;
@@ -424,13 +421,11 @@ void GE_Monitor::read_packet_from_frame(){
                 wave_val.Value = waveValList;
                 m_WaveValList.push_back(wave_val);
             }
-            //save_wave_to_csv();
         }
-        //save_wave_to_csv();
 
         else if(record.hdr.r_maintype == DRI_MT_ALARM){
-            uint unixtime = record.hdr.r_time;
-
+            // the timestamp from GE_Monitor
+            // uint unixtime = record.hdr.r_time;
             for(int j=0;j<8&&record.hdr.sr_desc[j].sr_type!=0xFF;j++){
                 int offset = (int)record.hdr.sr_desc[j].sr_offset;
                 byte buffer[270];
@@ -439,21 +434,20 @@ void GE_Monitor::read_packet_from_frame(){
                 }
                 struct datex::dri_al_msg dri_al_msg_ptr;
                 dri_al_msg_ptr = *(struct datex::dri_al_msg*)buffer;
-
+                /*
+                // use time from GE_Monitor
                 std::time_t temp = unixtime;
                 std::tm* t = std::gmtime(&temp);
                 std::stringstream ss;
                 ss << std::put_time(t, "%Y-%m-%d %I:%M:%S %p");
+                */
                 AlarmResult alarm[5];
-                std::time_t result = std::time(nullptr);
-                pkt_timestamp = std::asctime(std::localtime(&result));
+                std::time_t pc_time = std::time(nullptr);
+                pkt_timestamp = std::asctime(std::localtime(&pc_time));
                 pkt_timestamp.erase(pkt_timestamp.end()-1);
-
                 for(int n=0; n<5; n++){
-                    //alarm[n].Timestamp = ss.str();
-                     alarm[n].Timestamp = pkt_timestamp;
-                     alarm[n].timestamp = result;
-
+                    alarm[n].Timestamp = pkt_timestamp;
+                    alarm[n].timestamp = pc_time;
                     alarm[n].text = std::string(dri_al_msg_ptr.al_disp[n].text);
                     for(uint m=0;m<alarm[n].text.length();m++){
                         if(alarm[n].text[m]=='\n'){
@@ -461,7 +455,6 @@ void GE_Monitor::read_packet_from_frame(){
                             break;
                         }
                 }
-
                 switch(dri_al_msg_ptr.al_disp[n].color){
                     case 0:
                         alarm[n].color = "DRI_PR0";
@@ -480,18 +473,12 @@ void GE_Monitor::read_packet_from_frame(){
                 if(dri_al_msg_ptr.al_disp[n].text_changed==1){
                     m_AlarmList.push_back(alarm[n]);
                 }
-
             }
         }
-
     }
-
-
     }
 }
-
-
-/*****************************************************/
+/***************************************************************************************************************************************************************/
 /**
  * @brief Saving functions : call these function to save parsed data
  */
@@ -502,6 +489,7 @@ void GE_Monitor::save_data()
     save_alarm_to_csv();
     save_wave_to_csv();
 }
+
 double GE_Monitor::get_wave_unit_shift(std::string physioId){
     double decimalshift = 1;
     if(physioId.find("ECG")!=std::string::npos)
@@ -574,7 +562,6 @@ void GE_Monitor::save_alarm_to_csv(){
 
 void GE_Monitor::save_wave_to_csv(){
     for(uint i=0; i<m_WaveValList.size(); i++){
-
         // Get local time
         std::time_t current_pc_timestamp = std::time(nullptr);
         std::string pkt_timestamp =std::asctime(std::localtime(&current_pc_timestamp));
@@ -615,7 +602,6 @@ void GE_Monitor::save_wave_to_csv(){
     }
 
 }
-
 
 void GE_Monitor::save_basic_sub_record(datex::dri_phdb driSR){
     //ECG
