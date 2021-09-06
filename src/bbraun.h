@@ -27,6 +27,11 @@ private:
     QTimer *logger_timer;
     std::vector<byte> m_bedid;
     QString pathcsv = QDir::currentPath()+"/../icu_devices/data/bbraun_perfusor/";
+    QString filename_GeneralP;
+    QString filename_InfusionPumpP;
+    QString filename_UndefinedP;
+    QString filename_AdditionalP;
+
     bool ack_flag = false;
     bool m_fstart = false;
     bool m_storestart = false;
@@ -51,7 +56,7 @@ private:
     void request_initialize_connection();
     void read_packet_from_frame();
     std::vector<std::string> split_string(std::string s, byte delimiter);
-    void save_num_value_list_row(std::string datatype);
+    void save_num_value_list_row(QString filename, std::string datatype);
     bool write_header_for_data_type(std::string datatype);
     void write_num_header_list(std::string datatype, QString filename);
 

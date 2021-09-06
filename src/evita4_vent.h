@@ -35,6 +35,11 @@ private:
 //    unsigned long int timelapse;
 
     QString pathcsv = QDir::currentPath() + "/../icu_devices/data/draeger_evita4/";
+    QString filename_measurement;
+    QString filename_low_limit;
+    QString filename_high_limit;
+    QString filename_alarm;
+
     bool free_flag = true;
     bool sync_data = false;
     bool new_data = false;

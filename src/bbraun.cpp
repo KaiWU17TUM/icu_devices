@@ -29,6 +29,12 @@ void Bbraun::start(){
     try {
         std::cout<<"Try to open the serial port for Bbraun perfusor"<<std::endl;
         try_to_open_port();
+        std::time_t current_pc_time = std::time(nullptr);
+        filename_GeneralP = pathcsv + QString::fromStdString(std::to_string(current_pc_time)) + "_GeneralParameters.csv";
+        filename_InfusionPumpP = pathcsv + QString::fromStdString(std::to_string(current_pc_time)) + "_InfusionPumpParameters.csv";
+        filename_UndefinedP = pathcsv + QString::fromStdString(std::to_string(current_pc_time)) + "_UndefinedParameters.csv";
+        filename_AdditionalP = pathcsv + QString::fromStdString(std::to_string(current_pc_time)) + "_AdditionalParameters.csv";
+
         std::cout<<"Initialize the connection with "<<std::endl;
         request_initialize_connection();
 
@@ -328,23 +334,23 @@ void Bbraun::save_num_values_by_type(){
     for (uint i = 0; i < numval_list.size(); i++)
     {
         if(numval_list[0].Parametertype == "GeneralParameters"){
-            save_num_value_list_row("GeneralParameters");
+            save_num_value_list_row(filename_GeneralP, "GeneralParameters");
         }else if(numval_list[0].Parametertype == "InfusionPumpParameters"){
-            save_num_value_list_row("InfusionPumpParameters");
+            save_num_value_list_row(filename_InfusionPumpP, "InfusionPumpParameters");
         }else if(numval_list[0].Parametertype == "AdditionalParameters"){
-            save_num_value_list_row("AdditionalParameters");
+            save_num_value_list_row(filename_AdditionalP, "AdditionalParameters");
         }else if(numval_list[0].Parametertype == "UndefinedParameters"){
-            save_num_value_list_row("UndefinedParameters");
+            save_num_value_list_row(filename_UndefinedP, "UndefinedParameters");
         }
     }
 }
 
-void Bbraun::save_num_value_list_row(std::string datatype){
+void Bbraun::save_num_value_list_row(QString filename, std::string datatype){
     std::time_t current_pc_time = std::time(nullptr);
-    std::string pkt_timestamp =std::asctime(std::localtime(&current_pc_time));
-    pkt_timestamp.erase(8,11);
+    // std::string pkt_timestamp =std::asctime(std::localtime(&current_pc_time));
+    // pkt_timestamp.erase(8,11);
+    // QString filename;
 
-    QString filename = pathcsv + QString::fromStdString(pkt_timestamp) + QString::fromStdString(datatype)+".csv";
 
     std::string row;
     row.append(numval_list[0].Timestamp);

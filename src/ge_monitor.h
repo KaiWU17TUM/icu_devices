@@ -32,8 +32,16 @@ private:
     std::string machine_timestamp;
     std::string pkt_timestamp;
     std::string m_DeviceID = "GE_Monitor";
+    QString filename_phdb;
+    QString filename_alarm;
+    std::map<std::string, QString> filenames_wave;
+
     bool m_transmissionstart = true;
-    QString pathcsv = QDir::currentPath() + "/../tmp/";
+
+    //QString pathcsv = QDir::currentPath() + "/../tmp/";
+    QString pathcsv = QDir::currentPath()+"/../icu_devices/data/ge_monitor/";
+    //QString pathcsv = QDir::currentPath() + "/DHM/";
+
     std::vector<struct NumericValResult> m_NumericValList;
     std::vector<struct WaveValResult> m_WaveValList;
     std::vector<struct AlarmResult> m_AlarmList;

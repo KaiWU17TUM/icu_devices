@@ -25,6 +25,11 @@ void GE_Monitor::start(){
         std::cout<<"Try to open the serial port for GE Monitor"<<std::endl;
         try_to_open_port();
 
+        // prepare files
+        std::time_t current_pc_time = std::time(nullptr);
+        filename_phdb = pathcsv + QString::fromStdString(std::to_string(current_pc_time)) + "_PHDB_data.csv";
+        filename_alarm = pathcsv + QString::fromStdString(std::to_string(current_pc_time)) + "_Alarm.csv";
+
         std::cout<<"Reset wave transfer";
         request_wave_stop();
 
@@ -34,6 +39,11 @@ void GE_Monitor::start(){
 
         // Set the wave that you want to retrieve, make sure the sum of samples/sec is smaller than 600
         std::vector<byte> wave_ids = {1, 8};
+        for(int i=0;i<wave_ids.size();i++){
+            std::string physioId = datex::WaveIdLabels.find(wave_ids[i])->second;
+            QString filename = pathcsv + QString::fromStdString(std::to_string(current_pc_time)) + "_" + QString::fromStdString(physioId)+".csv";
+            filenames_wave[physioId] = filename;
+        }
         request_wave_transfer(wave_ids); // send the wave transfer request
 
         request_alarm_transfer(); // send the alarm transfer request, default into differential mode
@@ -523,14 +533,15 @@ void GE_Monitor::save_alarm_to_csv(){
     for(uint i=0; i<m_AlarmList.size(); i++){
         // Get local time
         std::time_t pc_current_timestamp = std::time(nullptr);
+        /*
         std::string pkt_timestamp =std::asctime(std::localtime(&pc_current_timestamp));
         pkt_timestamp.erase(8,11);
-
         pkt_timestamp.pop_back();
 
-
-        QString filename =  pathcsv + QString::fromStdString(pkt_timestamp) + "_Alarm.csv";
-
+        if(alarm_transmissionstart){
+            filename_alarm = pathcsv + QString::fromStdString(std::to_string(current_pc_time)) + "_Alarm.csv";
+        }
+        */
         std::string row;
         bool changed=false;
         int elementcount=0;
@@ -550,7 +561,7 @@ void GE_Monitor::save_alarm_to_csv(){
             }
 
     if(changed){
-        QFile myfile(filename);
+        QFile myfile(filename_alarm);
         if (myfile.open(QIODevice::Append)) {
             myfile.write((char*)&row[0], row.length());
             qDebug()<<"write to alarm file";
@@ -564,11 +575,13 @@ void GE_Monitor::save_wave_to_csv(){
     for(uint i=0; i<m_WaveValList.size(); i++){
         // Get local time
         std::time_t current_pc_timestamp = std::time(nullptr);
+        /*
         std::string pkt_timestamp =std::asctime(std::localtime(&current_pc_timestamp));
         pkt_timestamp.erase(8,11);
         pkt_timestamp.pop_back();
         QString filename =  pathcsv + QString::fromStdString(pkt_timestamp) + QString::fromStdString(m_WaveValList[i].PhysioID) + ".csv";
-
+        */
+        QString filename = filenames_wave[m_WaveValList[i].PhysioID];
         double decimalshift = m_WaveValList[i].Unitshift;
         std::string row;
         bool changed=false;
@@ -801,13 +814,14 @@ void GE_Monitor::write_to_rows(){
     if (m_NumericValList.size() != 0)
     {
         std::time_t current_pc_time = std::time(nullptr);
-        std::string pkt_timestamp =std::asctime(std::localtime(&current_pc_time));
-        pkt_timestamp.erase(8,11);
-        pkt_timestamp.pop_back();
+        //std::string pkt_timestamp =std::asctime(std::localtime(&current_pc_time));
+        //pkt_timestamp.erase(8,11);
+        //pkt_timestamp.pop_back();
+        if(m_transmissionstart){
+            //filename_phdb = pathcsv + QString::fromStdString(std::to_string(current_pc_time)) + "_PHDB_data.csv";
+            write_to_file_header(filename_phdb);
+        }
 
-        QString filename = pathcsv + QString::fromStdString(pkt_timestamp) + "PHDB_data.csv";
-
-        write_to_file_header(filename);
         std::string row;
         row.append("\n");
         row.append(m_NumericValList[0].Timestamp);
@@ -828,7 +842,7 @@ void GE_Monitor::write_to_rows(){
         }
 
         if(changed){
-            QFile myfile(filename);
+            QFile myfile(filename_phdb);
             if (myfile.open(QIODevice::Append)) {
                 myfile.write((char*)&row[0], row.length());
                 qDebug()<<"write to phdb";
@@ -848,7 +862,6 @@ void GE_Monitor::write_to_file_header(QString filename)
         headers.append(",");
         headers.append("time");
         headers.append(",");
-
 
         for(uint i=0;i<m_NumValHeaders.size();i++){
             headers.append(m_NumValHeaders[i]);

@@ -56,6 +56,12 @@ void Evita4_vent::start(){
         std::cout<<"Try to open the serial port for Evita 4"<<std::endl;
         try_to_open_port();
 
+        std::time_t current_pc_time = std::time(nullptr);
+        filename_measurement = pathcsv + QString::fromStdString(std::to_string(current_pc_time)) + "_measurement.csv";
+        filename_low_limit = pathcsv + QString::fromStdString(std::to_string(current_pc_time)) + "_low_limit.csv";
+        filename_high_limit = pathcsv + QString::fromStdString(std::to_string(current_pc_time)) + "_high_limit.csv";
+        filename_alarm = pathcsv + QString::fromStdString(std::to_string(current_pc_time)) + "_Alarm.csv";
+
         std::cout<<"Initialize the connection with Evita 4"<<std::endl;
         request_icc();
 
@@ -65,6 +71,7 @@ void Evita4_vent::start(){
         QThread::sleep(1);
         measurement_timer->start(3000);
         logger_timer->start(1000);
+
     }  catch (const std::exception& e) {
         qDebug()<<"Error opening/writing to serial port "<<e.what();
     }
@@ -488,10 +495,18 @@ void Evita4_vent::save_data(){
 void Evita4_vent::save_num_val_list_rows(std::string datatype){
     if(numval_list.size()!=0){
         std::time_t current_pc_time = std::time(nullptr);
-        std::string pkt_timestamp =std::asctime(std::localtime(&current_pc_time));
-        pkt_timestamp.erase(8,11);
 
-        QString filename = pathcsv + QString::fromStdString(pkt_timestamp) + QString::fromStdString(datatype)+".csv";
+        QString filename;
+        if(datatype == "MeasuredCP1"){
+            filename = filename_measurement;
+        }
+        else if(datatype == "AlarmLow"){
+            filename = filename_low_limit;
+        }
+        else if(datatype == "AlarmHigh"){
+            filename = filename_high_limit;
+        }
+
         write_num_header_list(datatype, filename);
 
         std::string row;
@@ -564,10 +579,8 @@ void Evita4_vent::save_alarm_list_rows(){
 void Evita4_vent::write_num_header_list(std::string datatype, QString filename){
     if(write_header_for_data_type(datatype)){
         std::string header;
-
         header.append("Time");
         header.append(",");
-
         for(unsigned long i=0;i<numval_list.size();i++){
             if(numval_list[i].timestamp==numval_list[0].timestamp){
                 header+=numval_list[i].PhysioID;
