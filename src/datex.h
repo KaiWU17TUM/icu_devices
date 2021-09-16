@@ -1,8 +1,39 @@
 #ifndef DATEX_H
 #define DATEX_H
 
-
 #include <map>
+#include <string>
+#include <vector>
+
+struct NumericValResult
+{
+    std::string Timestamp;
+    unsigned long int timestamp;
+    std::string PhysioID;
+    std::string Value;
+    std::string DeviceID;
+};
+
+struct  WaveValResult
+{
+    std::string Timestamp;
+    std::vector<unsigned long int> TimeList;
+    unsigned long int timestamp;
+    std::string PhysioID;
+    std::vector<short> Value;
+    std::string DeviceID;
+    double Unitshift;
+};
+
+#pragma pack(1)
+struct  AlarmResult
+{
+    std::string Timestamp;
+    unsigned long int timestamp;
+    std::string text;
+    std::string color;
+    std::string sound;
+};
 
 #define DATA_INVALID_LIMIT -32001
 

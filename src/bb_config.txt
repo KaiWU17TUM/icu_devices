@@ -1,0 +1,19 @@
+################################################
+# Config serial port
+usb_port = /dev/ttyUSB2
+baud_rate = 19200
+data_bits = data8
+parity = no_parity
+stop_bits = one_stop
+flow_control = no_flow_control
+
+################################################
+# Logger configuration
+time_delay = 0
+logging_period = 3000
+saving_dir = /home/wei/DHM/icu_devices/data/bbraun_perfusor
+
+################################################
+# Protocol configuration
+time_interval = 5000
+

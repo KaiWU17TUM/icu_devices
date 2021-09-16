@@ -1,0 +1,20 @@
+################################################
+# Config serial port
+usb_port = /dev/ttyUSB1
+baud_rate = 19200
+data_bits = data8
+parity = even_parity
+stop_bits = one_stop
+flow_control = hardware_control
+
+################################################
+# Logger configuration
+time_delay = 0
+logging_period = 3000
+saving_dir = /home/wei/DHM/icu_devices/data/ge_monitor_b650/
+
+################################################
+# Protocol configuration
+phdb_time_interval = 10
+wave_id = [1, 8]
+

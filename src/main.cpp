@@ -1,7 +1,7 @@
 #include <QCoreApplication>
 #include "ge_monitor.h"
-#include "evita4_vent.h"
-#include "bbraun.h"
+//#include "evita4_vent.h"
+//#include "bbraun.h"
 #include <QDebug>
 #include <vector>
 
@@ -12,7 +12,8 @@ int main(int argc, char *argv[])
     // GE,Draeger,BBraun => USB2,4,5
 
     // Uncomment the following lines to enable or disable the data retrieving from hardwares
-     GE_Monitor my_monitor;
+     std::string ge_config_file = "/home/wei/DHM/icu_devices/src/ge_config.txt";
+     GE_Monitor my_monitor(ge_config_file);
      my_monitor.start();
 
     // Evita4_vent my_evita4_vent;
