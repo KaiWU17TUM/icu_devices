@@ -11,7 +11,7 @@ flow_control = hardware_control
 # Logger configuration
 time_delay = 0
 logging_period = 3000
-saving_dir = /home/wei/DHM/icu_devices/data/ge_monitor_b650/
+folder = ge_monitor_b650
 
 ################################################
 # Protocol configuration

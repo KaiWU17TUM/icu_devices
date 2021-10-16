@@ -1,6 +1,6 @@
 ################################################
 # Config serial port
-usb_port = /dev/ttyUSB4
+usb_port = /dev/ttyUSB3
 baud_rate = 19200
 data_bits = data8
 parity = even_parity
@@ -11,13 +11,13 @@ flow_control = no_flow_control
 # Logger configuration
 time_delay = 0
 logging_period = 3000
-saving_dir = /home/wei/DHM/icu_devices/data/draeger_evita4/
+folder = draeger_evita4
 
 ################################################
 # Protocol configuration
-measurement_time_interval = 3
-alarm1_time_interval = 3
-alarm2_time_interval = 3
-alarm_low_limit_time_interval = 3
-alarm_high_limit_time_interval = 3
+measurement_time_interval = 5000
+alarm1_time_interval = 3000
+alarm2_time_interval = 3000
+alarm_low_limit_time_interval = 10000
+alarm_high_limit_time_interval = 10000
 
