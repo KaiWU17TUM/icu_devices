@@ -9,11 +9,19 @@ flow_control = no_flow_control
 
 ################################################
 # Logger configuration
+
+# How much delay does it need to have before save the data into file
 time_delay = 0
+
+# The checking period of logging
 logging_period = 3000
+
+# Logger will save to this folder name
 folder =  bbraun_perfusor
 
 ################################################
 # Protocol configuration
+
+# The period of sending GET_MEM request (the frequency of getting data from device)
 time_interval = 5000
 

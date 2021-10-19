@@ -9,12 +9,54 @@ flow_control = hardware_control
 
 ################################################
 # Logger configuration
+
+# How much delay does it need to have before save the data into file
 time_delay = 0
+
+# The checking period of logging
 logging_period = 3000
+
+# Logger will save to this folder name
 folder = ge_monitor_b650
 
 ################################################
 # Protocol configuration
+
+# The period to send pddb request
 phdb_time_interval = 10
+
+# The target wave id, the sum of wave_id frequency should be smaller than 600/s
 wave_id = [1, 8]
 
+# Here is the wave_id mapping relationship, the frequency is following
+#0, "DRI_WF_CMD", unknown
+#1, "DRI_WF_ECG1", 300
+#2, "DRI_WF_ECG2", 300
+#3, "DRI_WF_ECG3", 300
+#4, "DRI_WF_INVP1", 100
+#5, "DRI_WF_INVP2", 100
+#6, "DRI_WF_INVP3", 100
+#7, "DRI_WF_INVP4", 100
+#8, "DRI_WF_PLETH", 100
+#9, "DRI_WF_CO2", 25
+#10, "DRI_WF_O2", 25
+#11, "DRI_WF_N2O", 25
+#12, "DRI_WF_AA", 25
+#13, "DRI_WF_AWP", 25
+#14, "DRI_WF_FLOW", 25
+#15, "DRI_WF_RESP", 25
+#16, "DRI_WF_INVP5", 100
+#17, "DRI_WF_INVP6", 100
+#18, "DRI_WF_EEG1", 100
+#19, "DRI_WF_EEG2", 100
+#20, "DRI_WF_EEG3", 100
+#21, "DRI_WF_EEG4", 100
+#23, "DRI_WF_VOL", 25
+#24, "DRI_WF_TONO_PRESS", 25
+#29, "DRI_WF_SPI_LOOP_STATUS", 25
+#32, "DRI_WF_ENT_100", 100
+#35, "DRI_WF_EEG_BIS", 300
+#36, "DRI_WF_INVP7", 100
+#37, "DRI_WF_INVP8", 100
+#38, "DRI_WF_PLETH2", 100
+#39, "DRI_WF_HGHRES_RESP_IMP", unknown

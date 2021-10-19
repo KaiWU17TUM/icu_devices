@@ -9,15 +9,29 @@ flow_control = no_flow_control
 
 ################################################
 # Logger configuration
+
+# How much delay does it need to have before save the data into file
 time_delay = 0
+
+# The checking period of logging
 logging_period = 3000
+
+# Logger will save to this folder name
 folder = draeger_evita4
 
 ################################################
 # Protocol configuration
+
+# The period of sending requests
+
+# Request to get measurements
 measurement_time_interval = 5000
+
+# Request to get alarms
 alarm1_time_interval = 3000
 alarm2_time_interval = 3000
+
+# Request to get alarms_limits
 alarm_low_limit_time_interval = 10000
 alarm_high_limit_time_interval = 10000
 
