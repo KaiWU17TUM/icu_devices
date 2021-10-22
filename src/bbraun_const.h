@@ -22,7 +22,7 @@
 typedef unsigned char byte;
 
 typedef std::pair<std::string, std::string> stringpair_t2;
-const std::map<std::string, std::string> GeneralParameters2{
+static std::map<std::string, std::string> GeneralParameters{
     stringpair_t2("FMNOR","Number of connected Space pillars"),
     stringpair_t2("FMSTAT","State of SpaceCom"),
     stringpair_t2("FMDONGLE","Hardware protection"),
@@ -30,7 +30,7 @@ const std::map<std::string, std::string> GeneralParameters2{
     stringpair_t2("FMRT","Type of a segment"),
     stringpair_t2("FMRSTAT","State of a segment"),
 };
-const std::map<std::string, std::string> InfusionPumpParameters2{
+static std::map<std::string, std::string> InfusionPumpParameters{
     stringpair_t2("GNNEW", "Name of the pump"),
     stringpair_t2("GNMODEL","Name of the pump model"),
 
@@ -148,8 +148,7 @@ const std::map<std::string, std::string> InfusionPumpParameters2{
 
     stringpair_t2("INAVRT","Average rate between two requests"),
 };
-
-const std::map<std::string, std::string> AdditionalParameters2{
+static std::map<std::string, std::string> AdditionalParameters{
     stringpair_t2("VERSION","Actual version number of protocol"),
 
     stringpair_t2("OPMODE","Operation mode of pump"),
@@ -280,4 +279,6 @@ struct NumValB{
     std::string PhysioID;
     std::string Value;
 };
+
+
 #endif // BBRAUN_CONST_H

@@ -14,7 +14,7 @@ Icu_devices_project
 |
 └───src : [Code for data retrieving]
 │   │   bbraun_const.h
-│   │   bbraun.cpp
+│   │   bcc.cpp
 │   │   ...
 │   
 └───scripts : [Scripts for connecting and disconnecting hardwares]
@@ -45,28 +45,31 @@ In this folder you will see the Qt project to retrieve data from medical devices
 <img src='./documents/imgs/UML.png'>
 \
 \
-In general, since all medical devices use serial protocal to do the communication, they all inherited from the Device class who contains a Qtserial port for serial communicating. 
+All medical devices would be an object of class Device. It mainly consists of three parts.
+1. **Serial port object**, to deal with UART comunication related tasks. For example, serial port setting, writing to serial port, and getting data from UART buffer with Interrupt.
+2. **Logger**, to deal with filesystem related tasks. For example, periodically checking the freshness of data, saving data into filesystems
+3. **Protocol**, each different types of device has its own protocol. It deals with request preparing and data decoding related tasks. The mapping between devices and protocols is as follows:
 
 ```
-GE_Monitor
-│   ge_monitor.cpp
-│   ge_monitor.hpp
-│   datex.h    
+GE_Monitor <-> Datex_ohmeda
 
-BBraun
-│   bbraun.cpp
-│   bbraun.hpp
-│   bbraun_const.h
+BBraun <-> Bcc
 
-Evita4_vent
-│   evita4_vent.cpp
-│   evita4_vent.hpp
-│   draeger.h  
-
+Evita4_vent <-> Medibus
 ```
 
-There is a function called **start()** for all ICU_devices classes.
 
-This is the main working loop for retrieving data from the device. You can change the request and period. More detailed descriptions are found in documents folder. The processed and parsed data are added into lists for specific packet.
+## Workflow of program
+\
+\
+<img src='./documents/imgs/Data_flow.png'>
 
-Since in the real world it is required that the data cannot be saved into readable format in a real time manner. We need to add a delay (20 minutes for example) between the saving and receiving. Therefore we implemented a logger_timer who wakes up periodically and check if the timestamps of the data in the list is "old enough", it saves packet which expires the delay into csv files and remove it from the list.
+
+
+In the begining, the protocol will prepare the request according to configure file and send it with serial port object. 
+
+After getting the request, the hardware prepare the data and send it back.
+
+The UART receive buffer will generate an interrupt after getting data, this will invoke decoding related code in Protocol. The decoded code will be put into an data array with the timestamp.
+
+The logger will periodically check the data in the data array, if the timestamp of the data is "old enough". It will save the data into filesystem and remove the data from the array.

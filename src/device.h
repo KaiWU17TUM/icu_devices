@@ -4,13 +4,14 @@
 #include "logger.h"
 #include "protocol.h"
 #include "datex_ohmeda.h"
+#include "bcc.h"
+#include "medibus.h"
 #include <string>
 #include <fstream>
 #include <QSerialPort>
 #include <QByteArray>
 #include <vector>
 #include <QObject>
-#include <QThread>
 #include <QMetaMethod>
 
 typedef unsigned char byte;
@@ -22,23 +23,21 @@ class Device: public QObject
     Q_OBJECT
 
 public:
-     Device(const std::string config_file);
-     void try_to_open_port();
-     void send_request();
-//     MySerialPort* get_serial(){
-//         return local_serial_port;}
+     Device(std::string device_name, std::string config_file, std::string general_config, std::string protocol);
      Logger* get_logger(){return local_logger;}
-     virtual void start()=0;
-     void write_buffer(std::vector<byte>* temptxbuff, qint64 len);
-     virtual ~Device(){};
+     void start();
+     void write_buffer(const char* temptxbuff, qint64 len);
 
-protected:
      Logger* local_logger;
      MySerialPort* local_serial_port;
      Protocol* local_protocol;
 
 private:
+     std::string device_name;
      std::string config_file;
+     void try_to_open_port();
+     void send_request();
+     std::string get_measurement_folder_name(std::string config_file);
      Q_DISABLE_COPY(Device);
 
 public slots:

@@ -7,6 +7,9 @@ MySerialPort::MySerialPort(const std::string config_file)
     load_serial_configs(config_file);
 }
 
+/**
+ * @brief MySerialPort::open_serial_port
+ */
 void MySerialPort::open_serial_port()
 {
     if (serial->open(QIODevice::ReadWrite)) {
@@ -17,12 +20,17 @@ void MySerialPort::open_serial_port()
     }
 }
 
-
-void MySerialPort::write_data(std::vector<byte>* temptxbuff, qint64 len)
+/**
+ * @brief MySerialPort::write_data
+ * @param temptxbuff
+ * @param len
+ */
+void MySerialPort::write_data(const char* temptxbuff, qint64 len)
 {
-    serial->write((const char*)&temptxbuff, len);
+    qint64 result;
+    result = serial->write(temptxbuff, len);
+    std::cout<<result;
 }
-
 
 
 QSerialPort::FlowControl resolveFlowControl(std::string input){
@@ -110,7 +118,11 @@ void MySerialPort::load_serial_configs(const std::string config_file){
     }
 }
 
+/**
+ * @brief MySerialPort::connect_serial_port: connect UART interrupt with serial port
+ * @param receiver
+ * @param slot
+ */
 void MySerialPort::connect_serial_port(const QObject *receiver, const char* slot){
-    //QObject::connect(serial, SIGNAL(readyRead()), receiver, slot);
-
+    QObject::connect(serial, SIGNAL(readyRead()), receiver, slot);
 }

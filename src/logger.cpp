@@ -1,12 +1,21 @@
 #include "logger.h"
+#include <QDir>
 
-Logger::Logger(const std::string config_file)
+Logger::Logger(const std::string config_file, std::string filename)
 {
     logger_timer = new QTimer();
     load_logger_settings(config_file);
+    save_dir = filename+"/"+save_dir+"/";
+    QDir dir(QString::fromStdString(save_dir));
+    if(!dir.exists()){
+        dir.mkpath(".");
+    }
 }
 
-
+/**
+ * @brief Logger::load_logger_settings: load logger settings from config file
+ * @param config_file
+ */
 void Logger::load_logger_settings(const std::string config_file){
     std::ifstream cfg_file(config_file);
     if (cfg_file.is_open()){
@@ -25,8 +34,9 @@ void Logger::load_logger_settings(const std::string config_file){
             else if(name == "logging_period"){
                 logging_period = decltype(std::time(nullptr))(stoi(value));
             }
-            else if(name == "saving_dir"){
+            else if(name == "folder"){
                 save_dir = value;
+
             }
         }
         cfg_file.close();
@@ -37,11 +47,18 @@ void Logger::load_logger_settings(const std::string config_file){
 }
 
 
-
+/**
+ * @brief Logger::start_logging: start the logger's timer
+ */
 void Logger::start_logging(){
     logger_timer->start(logging_period); // start the logger
 }
 
+/**
+ * @brief Logger::saving_to_file: save content into file
+ * @param filename
+ * @param content
+ */
 void Logger::saving_to_file(std::string filename, std::string content){
     QFile myfile(QString::fromStdString(filename));
     if (myfile.open(QIODevice::Append)) {
@@ -50,6 +67,11 @@ void Logger::saving_to_file(std::string filename, std::string content){
     }
 }
 
+/**
+ * @brief Logger::connect_logger: connect timer interrupt with logger
+ * @param receiver
+ * @param slot
+ */
 void Logger::connect_logger(const QObject *receiver, const char *slot){
     QObject::connect(logger_timer, SIGNAL(timeout()), receiver, slot);
 }

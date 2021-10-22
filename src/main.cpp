@@ -1,26 +1,29 @@
 #include <QCoreApplication>
-#include "ge_monitor.h"
-//#include "evita4_vent.h"
-//#include "bbraun.h"
+#include "device.h"
 #include <QDebug>
 #include <vector>
+#include <ctime>
 
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
     // B,C,D => USB1,2,3
-    // GE,Draeger,BBraun => USB2,4,5
 
-    // Uncomment the following lines to enable or disable the data retrieving from hardwares
-     std::string ge_config_file = "/home/wei/DHM/icu_devices/src/ge_config.txt";
-     GE_Monitor my_monitor(ge_config_file);
-     my_monitor.start();
+    //Uncomment the following lines to enable or disable the data retrieving from hardwares
+    std::string general_config_file = "/home/wei/DHM/icu_devices/src/general_config.txt";
+//    std::string ge_config_file = "/home/wei/DHM/icu_devices/src/ge_config.txt";
+//    Device my_monitor("ge_monitor_b650", ge_config_file, general_config_file, "datex_ohmeda");
+//    my_monitor.start();
 
-    // Evita4_vent my_evita4_vent;
-    // my_evita4_vent.start();
+//    std::string bb_config_file = "/home/wei/DHM/icu_devices/src/bb_config.txt";
+//    Device my_perfusor("bbraun", bb_config_file, general_config_file, "bcc");
+//    my_perfusor.start();
 
-    //Bbraun my_perfusor;
-    //my_perfusor.start();
+    std::string ev_config_file = "/home/wei/DHM/icu_devices/src/ev_config.txt";
+    Device my_evita4_vent("evta4", ev_config_file, general_config_file, "medibus");
+//    Evita4_vent my_evita4_vent(ev_config_file, general_config_file);
+    my_evita4_vent.start();
+
 
     /****************************************************************************************************************************/
     //Codes below are for debugging purpose, please ignore them

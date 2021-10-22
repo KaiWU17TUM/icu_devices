@@ -1,10 +1,15 @@
 #include "datex_ohmeda.h"
 #include "device.h"
 
-Datex_ohmeda::Datex_ohmeda(std::string config_file):Protocol(config_file){
+
+Datex_ohmeda::Datex_ohmeda(std::string config_file, Device* device):Protocol(config_file, device){
     load_protocol_config(config_file);
 }
 
+/**
+ * @brief Datex_ohmeda::load_protocol_config: load protocol settings from config file
+ * @param config_file
+ */
 void Datex_ohmeda::load_protocol_config(std::string config_file){
     std::ifstream cfg_file(config_file);
     if (cfg_file.is_open()){
@@ -45,21 +50,19 @@ void Datex_ohmeda::load_protocol_config(std::string config_file){
 
     // prepare files
     std::time_t current_pc_time = std::time(nullptr);
-    filename_phdb = std::to_string(current_pc_time) + "_PHDB_data.csv";
-    filename_alarm = std::to_string(current_pc_time) + "_Alarm.csv";
+    filename_phdb = device->get_logger()->save_dir + std::to_string(current_pc_time) + "_PHDB_data.csv";
+    filename_alarm = device->get_logger()->save_dir+std::to_string(current_pc_time) + "_Alarm.csv";
     for(int i=0;i<wave_ids.size();i++){
         std::string physioId = datex::WaveIdLabels.find(wave_ids[i])->second;
         std::string filename = std::to_string(current_pc_time) + "_" + physioId+".csv";
-        filenames_wave[physioId] = filename;
+        filenames_wave[physioId] = device->get_logger()->save_dir+filename;
     }
 }
 
 void Datex_ohmeda::write_buffer(byte* payload, int length){
     byte checksum=0;
     std::vector<byte> temptxbuff;
-
     temptxbuff.push_back(0x7e);
-
     for(int i=0;i<length;i++){
         switch(payload[i])
         {
@@ -100,154 +103,7 @@ void Datex_ohmeda::write_buffer(byte* payload, int length){
     }
 
     temptxbuff.push_back(0x7e);
-//    const char* payload_data = (const char*)&temptxbuff[0];
-    device->write_buffer(&temptxbuff, temptxbuff.size());
-}
-
-/**
- * @brief GE_Monitor::request_phdb_transfer : call this function to retrieve phdb data periodically
- */
-void request_phdb_transfer(int interval, Datex_ohmeda* p){
-    struct datex::datex_record_phdb_req requestPkt;
-    struct datex::dri_phdb_req *pRequest;
-
-    //Clear the pkt
-    memset(&requestPkt, 0x00, sizeof(requestPkt));
-
-    //Fill the header
-    requestPkt.hdr.r_len = sizeof(struct datex::datex_hdr)+sizeof(struct datex::dri_phdb_req);
-    requestPkt.hdr.r_maintype = DRI_MT_PHDB;
-    requestPkt.hdr.dri_level =  0;
-
-    //The pkt contains one subrecord
-    requestPkt.hdr.sr_desc[0].sr_type = 0;
-    requestPkt.hdr.sr_desc[0].sr_offset = (byte)0;
-    requestPkt.hdr.sr_desc[1].sr_type = (short) DRI_EOL_SUBR_LIST;
-
-    //Fill the request
-    pRequest = (struct datex::dri_phdb_req*)&(requestPkt.phdbr);
-    pRequest->phdb_rcrd_type = DRI_PH_DISPL;
-    pRequest->tx_ival = interval;
-    pRequest->phdb_class_bf = DRI_PHDBCL_REQ_BASIC_MASK|DRI_PHDBCL_REQ_EXT1_MASK|DRI_PHDBCL_REQ_EXT2_MASK|DRI_PHDBCL_REQ_EXT3_MASK;
-
-    byte* payload = (byte*)&requestPkt;
-    int length = sizeof(requestPkt);
-    //return payload
-    p->write_buffer(payload, length);
-}
-
-/**
- * @brief GE_Monitor::request_alarm_transfer : call this function to retrieve alarm data whenever it happens
- */
-void request_alarm_transfer(Datex_ohmeda* p){
-    struct datex::datex_record_alarm_req requestPkt;
-    struct datex::al_tx_cmd *pRequest;
-
-    //Clear the pkt
-    memset(&requestPkt,0x00,sizeof(requestPkt));
-
-    //Fill the header
-    requestPkt.hdr.r_len = sizeof(struct datex::datex_hdr)+sizeof(struct datex::al_tx_cmd);
-    requestPkt.hdr.r_maintype = DRI_MT_ALARM;
-    requestPkt.hdr.dri_level =  0;
-
-    //The pkt contains one subrecord
-    requestPkt.hdr.sr_desc[0].sr_type = 0;
-    requestPkt.hdr.sr_desc[0].sr_offset = (byte)0;
-    requestPkt.hdr.sr_desc[1].sr_type = (short) DRI_EOL_SUBR_LIST;
-
-    //Fill the request
-    pRequest = (struct datex::al_tx_cmd*)&(requestPkt.alarm_cmd);
-    pRequest->cmd = DRI_AL_ENTER_DIFFMODE;
-
-    byte* payload = (byte*)&requestPkt;
-    int length = sizeof(requestPkt);
-    //return payload
-    p->write_buffer(payload,length);
-}
-
-/**
- * @brief GE_Monitor::request_wave_transfer : call this function to retrieve wave
- */
-void request_wave_transfer(std::vector<byte> wave_id, Datex_ohmeda* p){
-    // Test if samples > limitation
-    int sum = 0;
-    for(uint i=0;i<wave_id.size();i++){
-        sum+=datex::WaveIdFreqs.find(wave_id[i])->second;
-    }
-    if(sum>datex::max_wave_samples_limitation){
-        // qDebug()<<"Samples per second exceeds maximum, this request will not be sent";
-        return;
-    }
-    struct datex::datex_record_wave_req requestPkt;
-    struct datex::dri_wave_req *pRequest;
-
-    //Clear the pkt
-    memset(&requestPkt,0x00,sizeof(requestPkt));
-
-    //Fill the header
-    requestPkt.hdr.r_len = sizeof(struct datex::datex_hdr)+sizeof(struct datex::dri_wave_req);
-    requestPkt.hdr.r_maintype = DRI_MT_WAVE;
-    requestPkt.hdr.dri_level =  0;
-
-    //The pkt contains one subrecord
-    requestPkt.hdr.sr_desc[0].sr_type = 0;
-    requestPkt.hdr.sr_desc[0].sr_offset = (byte)0;
-    requestPkt.hdr.sr_desc[1].sr_type = (short) DRI_EOL_SUBR_LIST;
-
-    //Fill the request
-    pRequest = (struct datex::dri_wave_req*)&(requestPkt.wfreq);
-    pRequest->req_type = WF_REQ_CONT_START;
-    uint i=0;
-    for(i=0;i<wave_id.size();i++){
-        pRequest->type[i] = wave_id[i];
-    }
-
-    pRequest->type[i] = DRI_EOL_SUBR_LIST;
-
-    byte* payload = (byte*)&requestPkt;
-    int length = sizeof(requestPkt);
-    //return payload
-    p->write_buffer(payload,length);
-}
-
-/**
- * @brief GE_Monitor::request_wave_stop : call this function to stop wave transfer
- */
-void request_wave_stop(Datex_ohmeda* p){
-    struct datex::datex_record_wave_req requestPkt;
-    struct datex::dri_wave_req *pRequest;
-
-    //Clear the pkt
-    memset(&requestPkt,0x00,sizeof(requestPkt));
-
-    //Fill the header
-    requestPkt.hdr.r_len = sizeof(struct datex::datex_hdr)+sizeof(struct datex::dri_wave_req);
-    requestPkt.hdr.r_maintype = DRI_MT_WAVE;
-    requestPkt.hdr.dri_level =  0;
-
-    //The pkt contains one subrecord
-    requestPkt.hdr.sr_desc[0].sr_type = 0;
-    requestPkt.hdr.sr_desc[0].sr_offset = (byte)0;
-    requestPkt.hdr.sr_desc[1].sr_type = (short) DRI_EOL_SUBR_LIST;
-
-    //Fill the request
-    pRequest = (struct datex::dri_wave_req*)&(requestPkt.wfreq);
-    pRequest->req_type = WF_REQ_CONT_STOP;
-    pRequest->type[0] = DRI_EOL_SUBR_LIST;
-
-    byte* payload = (byte*)&requestPkt;
-    int length = sizeof(requestPkt);
-    //return payload
-    p->write_buffer(payload, length);
-}
-
-void Datex_ohmeda::send_request(){
-//    request_wave_stop(this);
-    request_phdb_transfer(phdb_data_interval, this);
-//    request_wave_transfer(wave_ids, this);
-//    request_alarm_transfer(this);
-
+    device->write_buffer((const char*)&temptxbuff[0], temptxbuff.size());
 }
 
 void Datex_ohmeda::from_literal_to_packet(byte b){
@@ -308,7 +164,162 @@ void Datex_ohmeda::from_literal_to_packet(byte b){
 
 }
 
+/**
+ * @brief request_phdb_transfer: send request to get phdb data
+ * @param interval
+ * @param p
+ */
+void request_phdb_transfer(int interval, Datex_ohmeda* p){
+    struct datex::datex_record_phdb_req requestPkt;
+    struct datex::dri_phdb_req *pRequest;
 
+    //Clear the pkt
+    memset(&requestPkt, 0x00, sizeof(requestPkt));
+
+    //Fill the header
+    requestPkt.hdr.r_len = sizeof(struct datex::datex_hdr)+sizeof(struct datex::dri_phdb_req);
+    requestPkt.hdr.r_maintype = DRI_MT_PHDB;
+    requestPkt.hdr.dri_level =  0;
+
+    //The pkt contains one subrecord
+    requestPkt.hdr.sr_desc[0].sr_type = 0;
+    requestPkt.hdr.sr_desc[0].sr_offset = (byte)0;
+    requestPkt.hdr.sr_desc[1].sr_type = (short) DRI_EOL_SUBR_LIST;
+
+    //Fill the request
+    pRequest = (struct datex::dri_phdb_req*)&(requestPkt.phdbr);
+    pRequest->phdb_rcrd_type = DRI_PH_DISPL;
+    pRequest->tx_ival = interval;
+    pRequest->phdb_class_bf = DRI_PHDBCL_REQ_BASIC_MASK|DRI_PHDBCL_REQ_EXT1_MASK|DRI_PHDBCL_REQ_EXT2_MASK|DRI_PHDBCL_REQ_EXT3_MASK;
+
+    byte* payload = (byte*)&requestPkt;
+    int length = sizeof(requestPkt);
+    //return payload
+    p->write_buffer(payload, length);
+}
+
+/**
+ * @brief request_alarm_transfer: send request to get alarm data
+ * @param p
+ */
+void request_alarm_transfer(Datex_ohmeda* p){
+    struct datex::datex_record_alarm_req requestPkt;
+    struct datex::al_tx_cmd *pRequest;
+
+    //Clear the pkt
+    memset(&requestPkt,0x00,sizeof(requestPkt));
+
+    //Fill the header
+    requestPkt.hdr.r_len = sizeof(struct datex::datex_hdr)+sizeof(struct datex::al_tx_cmd);
+    requestPkt.hdr.r_maintype = DRI_MT_ALARM;
+    requestPkt.hdr.dri_level =  0;
+
+    //The pkt contains one subrecord
+    requestPkt.hdr.sr_desc[0].sr_type = 0;
+    requestPkt.hdr.sr_desc[0].sr_offset = (byte)0;
+    requestPkt.hdr.sr_desc[1].sr_type = (short) DRI_EOL_SUBR_LIST;
+
+    //Fill the request
+    pRequest = (struct datex::al_tx_cmd*)&(requestPkt.alarm_cmd);
+    pRequest->cmd = DRI_AL_ENTER_DIFFMODE;
+
+    byte* payload = (byte*)&requestPkt;
+    int length = sizeof(requestPkt);
+    //return payload
+    p->write_buffer(payload,length);
+}
+
+/**
+ * @brief request_wave_transfer: send request to get wave form data
+ * @param wave_id
+ * @param p
+ */
+void request_wave_transfer(std::vector<byte> wave_id, Datex_ohmeda* p){
+    // Test if samples > limitation
+    int sum = 0;
+    for(uint i=0;i<wave_id.size();i++){
+        sum+=datex::WaveIdFreqs.find(wave_id[i])->second;
+    }
+    if(sum>datex::max_wave_samples_limitation){
+        // qDebug()<<"Samples per second exceeds maximum, this request will not be sent";
+        return;
+    }
+    struct datex::datex_record_wave_req requestPkt;
+    struct datex::dri_wave_req *pRequest;
+
+    //Clear the pkt
+    memset(&requestPkt,0x00,sizeof(requestPkt));
+
+    //Fill the header
+    requestPkt.hdr.r_len = sizeof(struct datex::datex_hdr)+sizeof(struct datex::dri_wave_req);
+    requestPkt.hdr.r_maintype = DRI_MT_WAVE;
+    requestPkt.hdr.dri_level =  0;
+
+    //The pkt contains one subrecord
+    requestPkt.hdr.sr_desc[0].sr_type = 0;
+    requestPkt.hdr.sr_desc[0].sr_offset = (byte)0;
+    requestPkt.hdr.sr_desc[1].sr_type = (short) DRI_EOL_SUBR_LIST;
+
+    //Fill the request
+    pRequest = (struct datex::dri_wave_req*)&(requestPkt.wfreq);
+    pRequest->req_type = WF_REQ_CONT_START;
+    uint i=0;
+    for(i=0;i<wave_id.size();i++){
+        pRequest->type[i] = wave_id[i];
+    }
+
+    pRequest->type[i] = DRI_EOL_SUBR_LIST;
+
+    byte* payload = (byte*)&requestPkt;
+    int length = sizeof(requestPkt);
+    //return payload
+    p->write_buffer(payload,length);
+}
+
+/**
+ * @brief request_wave_stop: send request and ask the device to stop sending wave data
+ * @param p
+ */
+void request_wave_stop(Datex_ohmeda* p){
+    struct datex::datex_record_wave_req requestPkt;
+    struct datex::dri_wave_req *pRequest;
+
+    //Clear the pkt
+    memset(&requestPkt,0x00,sizeof(requestPkt));
+
+    //Fill the header
+    requestPkt.hdr.r_len = sizeof(struct datex::datex_hdr)+sizeof(struct datex::dri_wave_req);
+    requestPkt.hdr.r_maintype = DRI_MT_WAVE;
+    requestPkt.hdr.dri_level =  0;
+
+    //The pkt contains one subrecord
+    requestPkt.hdr.sr_desc[0].sr_type = 0;
+    requestPkt.hdr.sr_desc[0].sr_offset = (byte)0;
+    requestPkt.hdr.sr_desc[1].sr_type = (short) DRI_EOL_SUBR_LIST;
+
+    //Fill the request
+    pRequest = (struct datex::dri_wave_req*)&(requestPkt.wfreq);
+    pRequest->req_type = WF_REQ_CONT_STOP;
+    pRequest->type[0] = DRI_EOL_SUBR_LIST;
+
+    byte* payload = (byte*)&requestPkt;
+    int length = sizeof(requestPkt);
+    //return payload
+    p->write_buffer(payload, length);
+}
+
+void Datex_ohmeda::send_request(){
+    request_wave_stop(this);
+    request_phdb_transfer(phdb_data_interval, this);
+    request_wave_transfer(wave_ids, this);
+    request_alarm_transfer(this);
+}
+
+/**
+ * @brief get_wave_unit_shift: get unit of wave data
+ * @param physioId
+ * @return
+ */
 double get_wave_unit_shift(std::string physioId){
     double decimalshift = 1;
     if(physioId.find("ECG")!=std::string::npos)
@@ -336,6 +347,56 @@ double get_wave_unit_shift(std::string physioId){
     else
         return decimalshift;
 
+}
+
+
+/**
+ * @brief validate_wave_data:  validate the number
+ * @param value
+ * @param decimalshift
+ * @param rounddata
+ * @return
+ */
+std::string validate_wave_data(short value, double decimalshift, bool rounddata){
+    double d_val = (double)(value)*decimalshift;
+    if(rounddata)
+        d_val = round(d_val);
+    std::string str = std::to_string(d_val);
+    if(value< DATA_INVALID_LIMIT)
+        str = '-';
+    return str;
+}
+
+/**
+ * @brief Datex_ohmeda::validate_add_data: validate data and save the data into vector
+ * @param physio_id
+ * @param value
+ * @param decimalshift
+ * @param rounddata
+ */
+void Datex_ohmeda::validate_add_data(std::string physio_id, short value,
+                       double decimalshift, bool rounddata)
+{
+    double dval = (double)(value)*decimalshift;
+    if (rounddata) dval = round(dval);
+
+    std::string valuestr =std::to_string(dval);;
+
+
+    if (value < DATA_INVALID_LIMIT)
+    {
+        valuestr = "-";
+    }
+
+    struct NumericValResult NumVal;
+
+    NumVal.Timestamp = machine_timestamp;
+    NumVal.timestamp = std::time(nullptr);
+    NumVal.PhysioID = physio_id;
+    NumVal.Value = valuestr;
+
+    m_NumericValList.push_back(NumVal);
+    m_NumValHeaders.push_back(NumVal.PhysioID);
 }
 
 void Datex_ohmeda::save_basic_sub_record(datex::dri_phdb driSR){
@@ -494,41 +555,6 @@ void Datex_ohmeda::save_ext1_and_ext2_and_ext3_record(datex::dri_phdb driSR){
     validate_add_data("BIS_SQI", driSR.physdata.ext2.eeg_bis.sqi_val, 1, true);
 }
 
-std::string validate_wave_data(short value, double decimalshift, bool rounddata){
-    double d_val = (double)(value)*decimalshift;
-    if(rounddata)
-        d_val = round(d_val);
-    std::string str = std::to_string(d_val);
-    if(value< DATA_INVALID_LIMIT)
-        str = '-';
-    return str;
-}
-
-void Datex_ohmeda::validate_add_data(std::string physio_id, short value,
-                       double decimalshift, bool rounddata)
-{
-    double dval = (double)(value)*decimalshift;
-    if (rounddata) dval = round(dval);
-
-    std::string valuestr =std::to_string(dval);;
-
-
-    if (value < DATA_INVALID_LIMIT)
-    {
-        valuestr = "-";
-    }
-
-    struct NumericValResult NumVal;
-
-    NumVal.Timestamp = machine_timestamp;
-    NumVal.timestamp = std::time(nullptr);
-    NumVal.PhysioID = physio_id;
-    NumVal.Value = valuestr;
-
-    m_NumericValList.push_back(NumVal);
-    m_NumValHeaders.push_back(NumVal.PhysioID);
-}
-
 void Datex_ohmeda::from_packet_to_structures(){
     std::vector<struct datex::datex_record*> record_array;
     for(uint i=0;i<frame_buffer.size();i++){
@@ -661,17 +687,14 @@ void Datex_ohmeda::from_packet_to_structures(){
     }
 }
 
-
 /*************************************************************/
-/**
- * @brief Saving functions : call these function to save parsed data
- */
+// functions for saving data
+
 void Datex_ohmeda::save_data(){
     write_to_rows();
     save_alarm_to_csv();
     save_wave_to_csv();
 }
-
 
 void Datex_ohmeda::save_alarm_to_csv(){
     std::time_t timelapse = device->get_logger()->time_delay;

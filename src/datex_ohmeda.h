@@ -3,14 +3,11 @@
 #include "protocol.h"
 #include "datex.h"
 #include <algorithm>
-#include <string>
-#include <cstring>
 #include <vector>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <ctime>
-#include <math.h>
 
 typedef unsigned char byte;
 //class GE_Monitor;
@@ -18,7 +15,7 @@ typedef unsigned char byte;
 class Datex_ohmeda:public Protocol
 {
 public:
-    Datex_ohmeda(std::string config_file);
+    Datex_ohmeda(std::string config_file, Device* device);
     void from_literal_to_packet(byte b);
     void from_packet_to_structures();
     void save_data();

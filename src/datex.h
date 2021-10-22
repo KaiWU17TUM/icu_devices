@@ -40,6 +40,7 @@ struct  AlarmResult
 typedef unsigned char byte;
 typedef unsigned short word;
 typedef unsigned int dword;
+
 namespace datex {
 
 #define DRI_MT_PHDB 0
