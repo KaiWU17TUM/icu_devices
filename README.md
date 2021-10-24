@@ -24,8 +24,10 @@ Icu_devices_project
 |   │   start_remote.sh
 |
 └───data : [Data retrieved from devices]
-    │   XXXX.csv
-    │   ...
+|   │   XXXX.csv
+|   │   ...
+|
+|___arduino_code: [code for urine scale]
 
 ```
 The whole hardware connection setup is shown in the following graph, more detailed description about connections can be found in the file *hardware_list.md*
