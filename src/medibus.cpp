@@ -34,10 +34,12 @@ Medibus::Medibus(std::string config_file, Device* device):Protocol(config_file, 
  * @param config_file
  */
 void Medibus::load_protocol_config(std::string config_file){
-    std::ifstream cfg_file(config_file);
-    if (cfg_file.is_open()){
+ QFile file(QString::fromStdString(config_file));
+    if (file.open(QIODevice::ReadOnly)){
+        QTextStream in(&file);
         std::string line;
-        while (std::getline(cfg_file, line)){
+        QString Line;
+        do{
             if(line[0] == '#' || line.empty())
                 continue;
             line.erase(std::remove_if(line.begin(), line.end(), isspace), line.end());
@@ -61,12 +63,8 @@ void Medibus::load_protocol_config(std::string config_file){
                 alarm_high_limit_time_interval = std::stoi(value);
            }
         }
-        cfg_file.close();
+        while(!Line.isNull());
     }
-    else {
-        std::cerr << "Couldn't open config file for reading.\n";
-    }
-
     // prepare filenames
     std::time_t current_pc_time = std::time(nullptr);
     filename_measurement = device->get_logger()->save_dir + (std::to_string(current_pc_time)) + "_measurement.csv";

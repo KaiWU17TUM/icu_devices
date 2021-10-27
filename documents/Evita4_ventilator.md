@@ -20,6 +20,8 @@ To get the following data
 * device settings
 
 We need to send the request periodically for the newest update. It important to know, the device will only reply the request one by one, requests that are sent simutaneously will be ignored. Like in the following start() example, we can bind timer with requests.
+* One important thing:
+    According to the medibus protocol, the request can only be answered one by one. If multiple requests arrive at the same time, or if the requests come before the last request is answered, the request will be dropped. If the request drop happens, we cannot guarantee the time interval between received data is constant. A smarter schedule strategy for sending requests need to be used here.
 
 <br />
 
@@ -67,3 +69,4 @@ A more detailed description for measured data is found in page 17 of ducument *i
 ## Request
 <br/>
 <img src="./imgs/evita_receive.png">
+

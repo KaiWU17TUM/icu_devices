@@ -33,8 +33,8 @@ protected:
 
 private:
     Q_DISABLE_COPY(Protocol);
-//private:
-    //void load_protocol_config(std::string config_file){};
+
+   // void load_protocol_config(std::string config_file){};
 };
 
 #endif // PROTOCOL_H

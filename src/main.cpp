@@ -11,9 +11,10 @@ int main(int argc, char *argv[])
 
     //Uncomment the following lines to enable or disable the data retrieving from hardwares
     std::string general_config_file = "/home/wei/DHM/icu_devices/src/general_config.txt";
-//    std::string ge_config_file = "/home/wei/DHM/icu_devices/src/ge_config.txt";
-//    Device my_monitor("ge_monitor_b650", ge_config_file, general_config_file, "datex_ohmeda");
-//    my_monitor.start();
+
+    std::string ge_config_file = "/home/wei/DHM/icu_devices/src/ge_config.txt";
+    Device my_monitor("ge_monitor_b650", ge_config_file, general_config_file, "datex_ohmeda");
+    my_monitor.start();
 
 //    std::string bb_config_file = "/home/wei/DHM/icu_devices/src/bb_config.txt";
 //    Device my_perfusor("bbraun", bb_config_file, general_config_file, "bcc");
@@ -21,7 +22,6 @@ int main(int argc, char *argv[])
 
     std::string ev_config_file = "/home/wei/DHM/icu_devices/src/ev_config.txt";
     Device my_evita4_vent("evta4", ev_config_file, general_config_file, "medibus");
-//    Evita4_vent my_evita4_vent(ev_config_file, general_config_file);
     my_evita4_vent.start();
 
 

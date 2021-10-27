@@ -3,14 +3,12 @@
 #include "protocol.h"
 #include "datex.h"
 #include <algorithm>
-#include <vector>
-#include <fstream>
 #include <iostream>
+#include <fstream>
 #include <map>
 #include <ctime>
 
-typedef unsigned char byte;
-//class GE_Monitor;
+
 
 class Datex_ohmeda:public Protocol
 {
@@ -24,8 +22,6 @@ public:
     ~Datex_ohmeda() = default;
 
 private:
-//    GE_Monitor* ge_monitor;
-
     std::vector<struct NumericValResult> m_NumericValList;
     std::vector<struct WaveValResult> m_WaveValList;
     std::vector<struct AlarmResult> m_AlarmList;
@@ -54,6 +50,7 @@ private:
     void save_wave_to_csv();
     void write_to_rows();
     void write_to_file_header(std::string filename);
+
 };
 
 #endif // DATEX_OHMEDA_H

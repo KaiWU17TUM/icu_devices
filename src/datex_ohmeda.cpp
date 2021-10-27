@@ -1,7 +1,7 @@
 #include "datex_ohmeda.h"
 #include "device.h"
-
-
+#include <QFile>
+#include <QTextStream>
 Datex_ohmeda::Datex_ohmeda(std::string config_file, Device* device):Protocol(config_file, device){
     load_protocol_config(config_file);
 }
@@ -11,10 +11,16 @@ Datex_ohmeda::Datex_ohmeda(std::string config_file, Device* device):Protocol(con
  * @param config_file
  */
 void Datex_ohmeda::load_protocol_config(std::string config_file){
-    std::ifstream cfg_file(config_file);
-    if (cfg_file.is_open()){
+    QFile file(QString::fromStdString(config_file));
+
+    //std::ifstream cfg_file(config_file);
+    if (file.open(QIODevice::ReadOnly)){
+        QTextStream in(&file);
         std::string line;
-        while (std::getline(cfg_file, line)){
+        QString Line;
+        do{
+            Line=in.readLine();
+            line = Line.toStdString();
             if(line[0] == '#' || line.empty())
                 continue;
             line.erase(std::remove_if(line.begin(), line.end(), isspace), line.end());
@@ -42,17 +48,14 @@ void Datex_ohmeda::load_protocol_config(std::string config_file){
                }
             }
         }
-        cfg_file.close();
-    }
-    else {
-        std::cerr << "Couldn't open config file for reading.\n";
+        while(!Line.isNull());
     }
 
     // prepare files
     std::time_t current_pc_time = std::time(nullptr);
     filename_phdb = device->get_logger()->save_dir + std::to_string(current_pc_time) + "_PHDB_data.csv";
     filename_alarm = device->get_logger()->save_dir+std::to_string(current_pc_time) + "_Alarm.csv";
-    for(int i=0;i<wave_ids.size();i++){
+    for(auto i=0;i<wave_ids.size();i++){
         std::string physioId = datex::WaveIdLabels.find(wave_ids[i])->second;
         std::string filename = std::to_string(current_pc_time) + "_" + physioId+".csv";
         filenames_wave[physioId] = device->get_logger()->save_dir+filename;

@@ -50,10 +50,15 @@ Bcc::Bcc(std::string config_file, Device* device):Protocol{config_file, device}{
  * @param config_file
  */
 void Bcc::load_protocol_config(std::string config_file){
-    std::ifstream cfg_file(config_file);
-    if (cfg_file.is_open()){
+    QFile file(QString::fromStdString(config_file));
+    //std::ifstream cfg_file(config_file);
+    if (file.open(QIODevice::ReadOnly)){
+        QTextStream in(&file);
         std::string line;
-        while (std::getline(cfg_file, line)){
+        QString Line;
+        do{
+            Line=in.readLine();
+            line = Line.toStdString();
             if(line[0] == '#' || line.empty())
                 continue;
             line.erase(std::remove_if(line.begin(), line.end(), isspace), line.end());
@@ -65,18 +70,15 @@ void Bcc::load_protocol_config(std::string config_file){
                 interval = std::stoi(value);
             }
         }
-        cfg_file.close();
+        while(!Line.isNull());
     }
-    else {
-        std::cerr << "Couldn't open config file for reading.\n";
-    }
-
     // prepare files
     std::time_t current_pc_time = std::time(nullptr);
     filename_GeneralP = device->get_logger()->save_dir + std::to_string(current_pc_time) + "_GeneralParameters.csv";
     filename_InfusionPumpP = device->get_logger()->save_dir+ std::to_string(current_pc_time) + "_InfusionPumpParameters.csv";
     filename_UndefinedP = device->get_logger()->save_dir + std::to_string(current_pc_time) + "_UndefinedParameters.csv";
     filename_AdditionalP = device->get_logger()->save_dir+std::to_string(current_pc_time) + "_AdditionalParameters.csv";
+
 }
 
 void Bcc::send_request(){

@@ -44,6 +44,11 @@ To connect to raspberry pi's serial port, we still need a null modem
 <img src="./imgs/null-modem.png" >\
 <em>null modem connector</em>
 
+<br>
+<img src="./imgs/ge_connect.png">
+
+<em>Serial port connection</em>
+
 
 ## BBraun Perfusor
     The connection is BBraun Spacecom -> self-made serial cable  -> ATEN UC-232A USB serial converter -> Raspberry pi
@@ -56,6 +61,10 @@ To connect to raspberry pi's serial port, we still need a null modem
 A apecial cable is required.Parts can be purchased and manufactured. Make a cable that connects No. 2, No. 3, and No. 5 of 9-pin mini DIN terminal to No. 3, No. 2, and
 No. 5 of Female 9-pin DSUB terminal. (This is done by Dr. Eichhorn)
 
+<br>
+<img src="./imgs/bbraun_connect.png">
+
+<em>Serial port connection</em>
 
 
 ## Evita4 ventilator
@@ -65,3 +74,7 @@ No. 5 of Female 9-pin DSUB terminal. (This is done by Dr. Eichhorn)
 <img src="./imgs/Evita4.png", width="300" >
 
 <em>Evita4 ventilator, the serial port is found in the backside of the machine</em>
+<br>
+<img src="./imgs/ventilator_connect.png">
+
+<em>Serial port connection</em>
