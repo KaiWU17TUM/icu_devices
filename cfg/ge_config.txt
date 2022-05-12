@@ -13,8 +13,8 @@ flow_control = hardware_control
 # How much delay does it need to have before save the data into file
 time_delay = 0
 
-# The checking period of logging
-logging_period = 3000
+# The checking period of logging (ECG=300hz,spo2=100hz,phdb=5sec)
+logging_period = 100
 
 # Logger will save to this folder name
 folder = ge_monitor_b650
@@ -23,7 +23,7 @@ folder = ge_monitor_b650
 # Protocol configuration
 
 # The period to send pddb request
-phdb_time_interval = 10
+phdb_time_interval = 1
 
 # The target wave id, the sum of wave_id frequency should be smaller than 600/s
 wave_id = [1, 8]

@@ -4,8 +4,8 @@ GREEN='\033[1;32m'
 BLUE='\033[0;36m'
 NC='\033[0m'
 
-IP_RASP1='10.42.0.67'
-IP_RASP2='10.42.1.46'
+IP_RASP1='10.42.1.67'
+IP_RASP2='10.42.0.46'
 RASP1='pi@'${IP_RASP1}
 RASP2='pi@'${IP_RASP2}
 
@@ -64,9 +64,9 @@ printf "\n${GREEN}==============================================================
 printf "Finish initialization\n"
 printf "================================================================================${NC}\n\n"
 
-printf "${BLUE}Start the program to acquire data from devices ${NC}"
-printf "${BLUE}Start the program to acquire data from realsense ${NC}"
+printf "${BLUE}Start the program to acquire data from devices ${NC}\n"
+printf "${BLUE}Start the program to acquire data from realsense ${NC}\n\n"
 
-./../../build-icu_devices-Desktop-Debug/icu_devices & python /home/kai/workspace/DHM-ICU/biometricID/python/capture_stream.py
+# ./../../build-icu_devices-Desktop-Debug/icu_devices & python /home/kai/workspace/DHM-ICU/biometricID/python/capture_stream.py
 
 

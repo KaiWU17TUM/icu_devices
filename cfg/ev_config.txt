@@ -1,9 +1,9 @@
 ################################################
 # Config serial port
-usb_port = /dev/ttyUSB2
+usb_port = /dev/ttyUSB3
 baud_rate = 19200
 data_bits = data8
-parity = no_parity
+parity = even_parity
 stop_bits = one_stop
 flow_control = no_flow_control
 
@@ -14,14 +14,24 @@ flow_control = no_flow_control
 time_delay = 0
 
 # The checking period of logging
-logging_period = 3000
+logging_period = 100
 
 # Logger will save to this folder name
-folder =  bbraun_perfusor
+folder = draeger_evita4
 
 ################################################
 # Protocol configuration
 
-# The period of sending GET_MEM request (the frequency of getting data from device)
-time_interval = 5000
+# The period of sending requests
+
+# Request to get measurements
+measurement_time_interval = 5000
+
+# Request to get alarms
+alarm1_time_interval = 3000
+alarm2_time_interval = 3000
+
+# Request to get alarms_limits
+alarm_low_limit_time_interval = 10000
+alarm_high_limit_time_interval = 10000
 

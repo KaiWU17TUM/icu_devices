@@ -2,5 +2,5 @@
 # Config patient information
 room = 001
 bed = 002
-path = /home/wei/DHM/icu_devices/data/
+path = /home/dhm/workspace/icu_devices/data/
 

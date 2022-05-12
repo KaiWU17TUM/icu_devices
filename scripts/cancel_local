@@ -5,7 +5,7 @@ GREEN='\033[1;32m'
 NC='\033[0m'
 
 IP_RASP1='10.42.0.67'
-IP_RASP2='10.42.1.46'
+IP_RASP2='10.42.0.46'
 RASP1='pi@'${IP_RASP1}
 RASP2='pi@'${IP_RASP2}
 
@@ -27,4 +27,3 @@ ssh -i ~/.ssh/id_rsa ${RASP2} './cancel_remote'
 printf "\n${GREEN}================================================================================\n"
 printf "Detached all hardwares in mocked ICU room\n"
 printf "================================================================================${NC}\n\n"
-
