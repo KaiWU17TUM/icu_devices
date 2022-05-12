@@ -17,6 +17,10 @@ Icu_devices_project
 │   │   bcc.cpp
 │   │   ...
 │   
+└───cfg : [Config files to save data]
+|   │   general_config.txt
+|   │   ...
+|
 └───scripts : [Scripts for connecting and disconnecting hardwares]
 |   │   cancel_local.sh
 |   │   cancel_remote.sh
