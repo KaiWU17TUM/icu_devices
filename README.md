@@ -2,40 +2,46 @@
 This project contains code and scripts for data retrieving from ICU devices (GE_Monitor, Braun perfusor and Evita 4 ventilator) and realsense camera.
 
 ```
-Icu_devices_project
-│   README.md
-│   LICENSE    
-│
-└───document : 
+icu_devices_project
+|   README.md
+|   LICENSE    
+|   ...
+|
+|---docs : 
 |   |   imgs
-|   |   docu [contains official documents for devices]
+|   |   manufacturers [contains official documents for devices]
 |   |   hardware_list.md
 |   |   ...
 |
-└───src : [Code for data retrieving]
-│   │   bbraun_const.h
-│   │   bcc.cpp
-│   │   ...
-│   
-└───cfg : [Config files to save data]
-|   │   general_config.txt
-|   │   ...
+|---raspberrypi :
+|   |   README.md
+|   |   raspberrypi.pro [qt file]
+|   |   build_project [script to compile the project]
+|   |
+|   |---src : [Code for data retrieving]
+|   │   |   bbraun_const.h
+|   |   |   bcc.cpp
+|   │   |   ...
+|   │   
+|   |---cfg : [Config files to save data, will be copied to build folder by the script]
+|   |   |   general_config.txt
+|   |   |   ...
+|   |
+|   |---data : [Data retrieved from devices]
+|   |   |   XXXX.csv
+|   |   |   ...
 |
-└───scripts : [Scripts for connecting and disconnecting hardwares]
-|   │   cancel_local.sh
-|   │   cancel_remote.sh
-|   │   start_local.sh
-|   │   start_remote.sh
+|---scripts : [Scripts for connecting and disconnecting hardwares]
+|   |   cancel_local.sh
+|   |   cancel_remote.sh
+|   |   start_local.sh
+|   |   start_remote.sh
 |
-└───data : [Data retrieved from devices]
-|   │   XXXX.csv
-|   │   ...
-|
-|___arduino_code: [code for urine scale]
+|───arduino: [code for urine scale]
 
 ```
 The whole hardware connection setup is shown in the following graph, more detailed description about connections can be found in the file *hardware_list.md*
-<img src="./documents/imgs/Connection.png">
+<img src="./docs/imgs/Connection.png">
 <br>
 
 ## Folder **scripts**
@@ -48,7 +54,7 @@ Inside this folder you will see 4 bash scripts. They are used to automatically c
 In this folder you will see the Qt project to retrieve data from medical devices. 
 \
 \
-<img src='./documents/imgs/UML.png'>
+<img src='./docs/imgs/UML.png'>
 \
 \
 All medical devices would be an object of class Device. It mainly consists of three parts.
@@ -68,7 +74,7 @@ Evita4_vent <-> Medibus
 ## Workflow of program
 \
 \
-<img src='./documents/imgs/Data_flow.png'>
+<img src='./docs/imgs/Data_flow.png'>
 
 
 

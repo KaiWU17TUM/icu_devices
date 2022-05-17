@@ -10,17 +10,17 @@ int main(int argc, char *argv[])
     // B,C,D => USB1,2,3
 
     //Uncomment the following lines to enable or disable the data retrieving from hardwares
-    std::string general_config_file = "/home/dhm/workspace/icu_devices/cfg/general_config.txt";
+    std::string general_config_file = "./cfg/general_config.txt";
 
-    std::string ge_config_file = "/home/dhm/workspace/icu_devices/cfg/ge_config.txt";
+    std::string ge_config_file = "./cfg/ge_config.txt";
     Device my_monitor("ge_monitor_b650", ge_config_file, general_config_file, "datex_ohmeda");
     my_monitor.start();
 
-    std::string bb_config_file = "/home/dhm/workspace/icu_devices/cfg/bb_config.txt";
+    std::string bb_config_file = "./cfg/bb_config.txt";
     Device my_perfusor("bbraun", bb_config_file, general_config_file, "bcc");
     my_perfusor.start();
 
-//    std::string ev_config_file = "/home/dhm/workspace/icu_devices/cfg/ev_config.txt";
+//    std::string ev_config_file = "./cfg/ev_config.txt";
 //    Device my_evita4_vent("evta4", ev_config_file, general_config_file, "medibus");
 //    my_evita4_vent.start();
 
