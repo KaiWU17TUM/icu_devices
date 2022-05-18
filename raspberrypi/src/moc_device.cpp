@@ -20,38 +20,36 @@
 QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
-struct qt_meta_stringdata_Device_t {
+struct qt_meta_stringdata_Device_t
+{
     QByteArrayData data[1];
     char stringdata0[7];
 };
-#define QT_MOC_LITERAL(idx, ofs, len) \
+#define QT_MOC_LITERAL(idx, ofs, len)                            \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
-    qptrdiff(offsetof(qt_meta_stringdata_Device_t, stringdata0) + ofs \
-        - idx * sizeof(QByteArrayData)) \
-    )
+                                                            qptrdiff(offsetof(qt_meta_stringdata_Device_t, stringdata0) + ofs - idx * sizeof(QByteArrayData)))
 static const qt_meta_stringdata_Device_t qt_meta_stringdata_Device = {
     {
-QT_MOC_LITERAL(0, 0, 6) // "Device"
+        QT_MOC_LITERAL(0, 0, 6) // "Device"
 
     },
-    "Device"
-};
+    "Device"};
 #undef QT_MOC_LITERAL
 
 static const uint qt_meta_data_Device[] = {
 
- // content:
-       7,       // revision
-       0,       // classname
-       0,    0, // classinfo
-       0,    0, // methods
-       0,    0, // properties
-       0,    0, // enums/sets
-       0,    0, // constructors
-       0,       // flags
-       0,       // signalCount
+    // content:
+    7,    // revision
+    0,    // classname
+    0, 0, // classinfo
+    0, 0, // methods
+    0, 0, // properties
+    0, 0, // enums/sets
+    0, 0, // constructors
+    0,    // flags
+    0,    // signalCount
 
-       0        // eod
+    0 // eod
 };
 
 void Device::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
@@ -63,10 +61,8 @@ void Device::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void
 }
 
 const QMetaObject Device::staticMetaObject = {
-    { &QObject::staticMetaObject, qt_meta_stringdata_Device.data,
-      qt_meta_data_Device,  qt_static_metacall, nullptr, nullptr}
-};
-
+    {&QObject::staticMetaObject, qt_meta_stringdata_Device.data,
+     qt_meta_data_Device, qt_static_metacall, nullptr, nullptr}};
 
 const QMetaObject *Device::metaObject() const
 {
@@ -75,9 +71,10 @@ const QMetaObject *Device::metaObject() const
 
 void *Device::qt_metacast(const char *_clname)
 {
-    if (!_clname) return nullptr;
+    if (!_clname)
+        return nullptr;
     if (!strcmp(_clname, qt_meta_stringdata_Device.stringdata0))
-        return static_cast<void*>(this);
+        return static_cast<void *>(this);
     return QObject::qt_metacast(_clname);
 }
 

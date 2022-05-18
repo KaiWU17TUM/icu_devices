@@ -4,22 +4,22 @@
 #include "bbraun_const.h"
 #include <QObject>
 
-class Bcc:public Protocol
+class Bcc : public Protocol
 {
     Q_OBJECT
 public:
-    Bcc(std::string config_file, Device* device);
+    Bcc(std::string config_file, Device *device);
     void from_literal_to_packet(byte b);
     void from_packet_to_structures();
     void save_data();
     void send_request();
-    void write_buffer(byte* payload, int length){};
-    void write_buffer(std::vector<byte>& bedid, std::vector<byte>& txbuf);
+    void write_buffer(byte *payload, int length){};
+    void write_buffer(std::vector<byte> &bedid, std::vector<byte> &txbuf);
 
-//    virtual ~Bcc(){};
+    //    virtual ~Bcc(){};
 
 private:
-    QTimer* request_timer;
+    QTimer *request_timer;
     std::vector<byte> m_bedid;
     bool ack_flag = false;
     bool m_fstart = false;
@@ -50,7 +50,6 @@ private:
 
 public slots:
     void send_get_mem_request();
-
 };
 
 #endif // BCC_H

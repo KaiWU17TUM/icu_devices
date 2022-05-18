@@ -3,9 +3,10 @@
 
 #include <QDebug>
 #include <iostream>
-namespace helper {
+namespace helper
+{
 
-void  print_array(const char* data, int length);
+    void print_array(const char *data, int length);
 
 }
 

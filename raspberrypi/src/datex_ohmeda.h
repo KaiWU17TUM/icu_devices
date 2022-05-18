@@ -8,17 +8,15 @@
 #include <map>
 #include <ctime>
 
-
-
-class Datex_ohmeda:public Protocol
+class Datex_ohmeda : public Protocol
 {
 public:
-    Datex_ohmeda(std::string config_file, Device* device);
+    Datex_ohmeda(std::string config_file, Device *device);
     void from_literal_to_packet(byte b);
     void from_packet_to_structures();
     void save_data();
     void send_request();
-    void write_buffer(byte* payload, int length);
+    void write_buffer(byte *payload, int length);
     ~Datex_ohmeda() = default;
 
 private:
@@ -45,12 +43,10 @@ private:
     void validate_add_data(std::string physio_id, short value,
                            double decimalshift, bool rounddata);
 
-
     void save_alarm_to_csv();
     void save_wave_to_csv();
     void write_to_rows();
     void write_to_file_header(std::string filename);
-
 };
 
 #endif // DATEX_OHMEDA_H
