@@ -13,9 +13,9 @@ icu_devices_project
 |   |   hardware_list.md
 |   |   ...
 |
-|---raspberrypi :
+|---icu_devices :
 |   |   README.md
-|   |   raspberrypi.pro [qt file]
+|   |   icu_devices.pro [qt file]
 |   |   build_project [script to compile the project]
 |   |
 |   |---src : [Code for data retrieving]

@@ -17,7 +17,7 @@ bin-release/
 *.user.*
 build/
 data/
-build_project
+# build_project
 
 .devcontainer
 .vscode
