@@ -605,6 +605,10 @@ void Datex_ohmeda::from_packet_to_structures()
         std::chrono::duration_cast<std::chrono::milliseconds>(
             now.time_since_epoch())
             .count();
+    unsigned long int pc_timestamp_s =
+        std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
 
     for (uint i = 0; i < frame_buffer.size(); i++)
     {
@@ -671,7 +675,7 @@ void Datex_ohmeda::from_packet_to_structures()
                 for (int n = 0; n < buflen; n += 2)
                 {
                     value_list.push_back((buffer[n + 1]) * 256 + (buffer[n]));
-                    timestamp_ms_list.push_back(pc_timestamp_ms + 1000 * (n / 2) / samples);
+                    timestamp_ms_list.push_back(pc_timestamp_s * 1000 - 1000 * ((buflen - n) / 2 - 1) / samples);
                 }
 
                 WaveValueDatex wave_val;
