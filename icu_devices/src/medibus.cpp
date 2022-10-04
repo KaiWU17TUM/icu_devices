@@ -180,7 +180,7 @@ void Medibus::from_packet_to_structures()
 {
     auto now = std::chrono::system_clock::now();
     std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::string pc_datetime std::ctime(&t);
+    std::string pc_datetime = std::ctime(&t);
     pc_datetime.erase(pc_datetime.end() - 1);
     unsigned long int pc_timestamp_ms =
         std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -852,7 +852,8 @@ void Medibus::parse_realtime_data(std::vector<byte> &packetbuffer)
                     data_value = std::to_string(value2);
 
                     NumericValueDraeger local_NumVal;
-                    local_NumVal.datetime = pkt_timestamp;
+                    local_NumVal.datetime = machine_datetime;
+                    local_NumVal.timestamp_ms = machine_timestamp;
                     local_NumVal.physioid = physio_id;
                     local_NumVal.value = data_value;
 

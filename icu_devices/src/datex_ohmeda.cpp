@@ -599,7 +599,7 @@ void Datex_ohmeda::from_packet_to_structures()
 
     auto now = std::chrono::system_clock::now();
     std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::string pc_datetime std::ctime(&t);
+    std::string pc_datetime = std::ctime(&t);
     pc_datetime.erase(pc_datetime.end() - 1);
     unsigned long int pc_timestamp_ms =
         std::chrono::duration_cast<std::chrono::milliseconds>(
