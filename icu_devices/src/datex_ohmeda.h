@@ -7,6 +7,7 @@
 #include <fstream>
 #include <map>
 #include <ctime>
+#include <chrono>
 
 class Datex_ohmeda : public Protocol
 {
@@ -20,12 +21,14 @@ public:
     ~Datex_ohmeda() = default;
 
 private:
-    std::vector<struct NumericValResult> m_NumericValList;
-    std::vector<struct WaveValResult> m_WaveValList;
-    std::vector<struct AlarmResult> m_AlarmList;
+    std::vector<struct NumericValueDatex> m_NumericValueList;
+    std::vector<struct WaveValueDatex> m_WaveValueList;
+    std::vector<struct AlarmDatex> m_AlarmList;
     std::vector<std::string> m_NumValHeaders;
 
-    std::string machine_timestamp;
+    std::string machine_datetime;
+    unsigned long int machine_timestamp;
+
     bool m_fstart = true;
     bool m_storestart = false;
     bool m_storeend = false;
@@ -37,6 +40,7 @@ private:
     std::string filename_alarm;
     std::map<std::string, std::string> filenames_wave;
     std::vector<byte> wave_ids;
+
     void load_protocol_config(std::string config_file);
     void save_basic_sub_record(datex::dri_phdb driSR);
     void save_ext1_and_ext2_and_ext3_record(datex::dri_phdb driSR);
@@ -45,8 +49,8 @@ private:
 
     void save_alarm_to_csv();
     void save_wave_to_csv();
-    void write_to_rows();
-    void write_to_file_header(std::string filename);
+    void save_numeric_to_csv();
+    void write_header(std::string filename);
 };
 
 #endif // DATEX_OHMEDA_H

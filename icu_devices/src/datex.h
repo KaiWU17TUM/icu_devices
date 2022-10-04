@@ -5,31 +5,31 @@
 #include <string>
 #include <vector>
 
-struct NumericValResult
+struct NumericValueDatex
 {
-    std::string Timestamp;
-    unsigned long int timestamp;
-    std::string PhysioID;
-    std::string Value;
-    std::string DeviceID;
+    std::string datetime;
+    unsigned long int timestamp_ms;
+    std::string physioid;
+    std::string value;
+    std::string deviceid; // unused
 };
 
-struct WaveValResult
+struct WaveValueDatex
 {
-    std::string Timestamp;
-    std::vector<unsigned long int> TimeList;
-    unsigned long int timestamp;
-    std::string PhysioID;
-    std::vector<short> Value;
-    std::string DeviceID;
-    double Unitshift;
+    std::string datetime;
+    unsigned long int timestamp_ms;
+    std::vector<unsigned long int> timestamp_ms_list;
+    std::string physioid;
+    std::vector<short> value_list;
+    std::string deviceid; // unused
+    double unitshift;
 };
 
 #pragma pack(1)
-struct AlarmResult
+struct AlarmDatex
 {
-    std::string Timestamp;
-    unsigned long int timestamp;
+    std::string datetime;
+    unsigned long int timestamp_ms;
     std::string text;
     std::string color;
     std::string sound;

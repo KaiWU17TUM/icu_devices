@@ -33,21 +33,20 @@ private:
     bool m_transmissionstart3 = true;
     bool m_transmissionstart4 = true;
 
+    std::vector<NumericValueBbraun> m_NumericValueList;
+
     int interval;
     std::string filename_GeneralP;
     std::string filename_InfusionPumpP;
     std::string filename_UndefinedP;
     std::string filename_AdditionalP;
 
-    std::vector<NumericValueBbraun> numval_list;
-    std::vector<std::string> header_list;
-
     void load_protocol_config(std::string config_file);
     void send_ack();
     void request_initialize_connection();
-    void save_num_value_list_row(std::string filename, std::string datatype);
-    bool write_header_for_data_type(std::string datatype);
-    void write_num_header_list(std::string datatype, std::string filename);
+    void save_numeric_value_list_to_row(std::string filename, std::string datatype);
+    bool numeric_value_list_header_selector(std::string datatype);
+    void write_numeric_value_list_header(std::string datatype, std::string filename);
     Q_DISABLE_COPY(Bcc);
 
 public slots:

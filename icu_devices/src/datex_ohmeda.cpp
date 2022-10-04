@@ -59,13 +59,16 @@ void Datex_ohmeda::load_protocol_config(std::string config_file)
     }
 
     // prepare files
-    std::time_t current_pc_time = std::time(nullptr);
-    filename_phdb = device->get_logger()->save_dir + std::to_string(current_pc_time) + "_PHDB_data.csv";
-    filename_alarm = device->get_logger()->save_dir + std::to_string(current_pc_time) + "_Alarm.csv";
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
+    filename_phdb = device->get_logger()->save_dir + std::to_string(pc_timestamp_ms) + "_PHDB_data.csv";
+    filename_alarm = device->get_logger()->save_dir + std::to_string(pc_timestamp_ms) + "_Alarm.csv";
     for (auto i = 0; i < wave_ids.size(); i++)
     {
         std::string physioId = datex::WaveIdLabels.find(wave_ids[i])->second;
-        std::string filename = std::to_string(current_pc_time) + "_" + physioId + ".csv";
+        std::string filename = std::to_string(pc_timestamp_ms) + "_" + physioId + ".csv";
         filenames_wave[physioId] = device->get_logger()->save_dir + filename;
     }
 }
@@ -415,24 +418,18 @@ void Datex_ohmeda::validate_add_data(std::string physio_id, short value,
     double dval = (double)(value)*decimalshift;
     if (rounddata)
         dval = round(dval);
-
     std::string valuestr = std::to_string(dval);
-    ;
-
     if (value < DATA_INVALID_LIMIT)
-    {
         valuestr = "-";
-    }
 
-    struct NumericValResult NumVal;
+    struct NumericValueDatex NumericValueDraeger;
+    NumericValueDraeger.datetime = machine_datetime;
+    NumericValueDraeger.timestamp_ms = machine_timestamp;
+    NumericValueDraeger.physioid = physio_id;
+    NumericValueDraeger.value = valuestr;
 
-    NumVal.Timestamp = machine_timestamp;
-    NumVal.timestamp = std::time(nullptr);
-    NumVal.PhysioID = physio_id;
-    NumVal.Value = valuestr;
-
-    m_NumericValList.push_back(NumVal);
-    m_NumValHeaders.push_back(NumVal.PhysioID);
+    m_NumericValueList.push_back(NumericValueDraeger);
+    m_NumValHeaders.push_back(NumericValueDraeger.physioid);
 }
 
 void Datex_ohmeda::save_basic_sub_record(datex::dri_phdb driSR)
@@ -600,6 +597,15 @@ void Datex_ohmeda::from_packet_to_structures()
         record_array.push_back(ptr);
     }
 
+    auto now = std::chrono::system_clock::now();
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::string pc_datetime std::ctime(&t);
+    pc_datetime.erase(pc_datetime.end() - 1);
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            now.time_since_epoch())
+            .count();
+
     for (uint i = 0; i < frame_buffer.size(); i++)
     {
         struct datex::datex_record record = (*record_array[i]);
@@ -607,7 +613,6 @@ void Datex_ohmeda::from_packet_to_structures()
         // this is a PHDB record
         if (record.hdr.r_maintype == DRI_MT_PHDB)
         {
-            // time from the GE_Monitor
             struct datex::dri_phdb phdata_ptr;
 
             for (int j = 0; j < 8 && record.hdr.sr_desc[j].sr_type != 0xFF; j++)
@@ -634,11 +639,8 @@ void Datex_ohmeda::from_packet_to_structures()
                     break;
                 }
 
-                // get time from PC
-                std::time_t pc_time = std::time(nullptr);
-                std::string pkt_timestamp = std::asctime(std::localtime(&pc_time));
-                pkt_timestamp.erase(pkt_timestamp.end() - 1);
-                machine_timestamp = pkt_timestamp;
+                machine_datetime = pc_datetime;
+                machine_timestamp = pc_timestamp_ms;
                 save_basic_sub_record(phdata_ptr);
                 save_ext1_and_ext2_and_ext3_record(phdata_ptr);
             }
@@ -647,13 +649,13 @@ void Datex_ohmeda::from_packet_to_structures()
         // this is a WAVE record
         else if (record.hdr.r_maintype == DRI_MT_WAVE)
         {
-            unsigned long int pc_time = std::time(nullptr);
             for (int j = 0; j < 8 && record.hdr.sr_desc[j].sr_type != 0xFF; j++)
             {
                 int offset = (int)record.hdr.sr_desc[j].sr_offset;
                 int srsamplelenbytes[2];
                 srsamplelenbytes[0] = record.rcrd.data[offset];
                 srsamplelenbytes[1] = record.rcrd.data[offset + 1];
+
                 int sub_header_len = 6;
                 int subrecordlen = 256 * (int)srsamplelenbytes[1] + (int)srsamplelenbytes[0];
                 int buflen = 2 * subrecordlen; //(nextoffset - offset - 6);
@@ -662,27 +664,24 @@ void Datex_ohmeda::from_packet_to_structures()
                 {
                     buffer[j] = record.rcrd.data[sub_header_len + j + offset];
                 }
-                std::vector<short> waveValList;
-                std::vector<unsigned long int> TimeList;
+
+                std::vector<short> value_list;
+                std::vector<unsigned long int> timestamp_ms_list;
                 int samples = datex::WaveIdFreqs.find(record.hdr.sr_desc[j].sr_type)->second;
                 for (int n = 0; n < buflen; n += 2)
                 {
-                    waveValList.push_back((buffer[n + 1]) * 256 + (buffer[n]));
-                    TimeList.push_back((unsigned long int)pc_time * 1000 + 1000 * (n / 2) / samples);
+                    value_list.push_back((buffer[n + 1]) * 256 + (buffer[n]));
+                    timestamp_ms_list.push_back(pc_timestamp_ms + 1000 * (n / 2) / samples);
                 }
-                WaveValResult wave_val;
-                std::time_t result = std::time(nullptr);
-                std::string pkt_timestamp = std::asctime(std::localtime(&result));
-                pkt_timestamp.erase(pkt_timestamp.end() - 1);
 
-                wave_val.Timestamp = pkt_timestamp;
-                wave_val.timestamp = result;
-                wave_val.TimeList = TimeList;
-                std::string physioId = datex::WaveIdLabels.find(record.hdr.sr_desc[j].sr_type)->second;
-                wave_val.PhysioID = physioId;
-                wave_val.Unitshift = get_wave_unit_shift(wave_val.PhysioID);
-                wave_val.Value = waveValList;
-                m_WaveValList.push_back(wave_val);
+                WaveValueDatex wave_val;
+                wave_val.datetime = pc_datetime;
+                wave_val.timestamp_ms = pc_timestamp_ms;
+                wave_val.timestamp_ms_list = timestamp_ms_list;
+                wave_val.physioid = datex::WaveIdLabels.find(record.hdr.sr_desc[j].sr_type)->second;
+                wave_val.unitshift = get_wave_unit_shift(wave_val.physioid);
+                wave_val.value_list = value_list;
+                m_WaveValueList.push_back(wave_val);
             }
         }
 
@@ -698,14 +697,11 @@ void Datex_ohmeda::from_packet_to_structures()
                 }
                 struct datex::dri_al_msg dri_al_msg_ptr;
                 dri_al_msg_ptr = *(struct datex::dri_al_msg *)buffer;
-                AlarmResult alarm[5];
-                std::time_t pc_time = std::time(nullptr);
-                std::string pkt_timestamp = std::asctime(std::localtime(&pc_time));
-                pkt_timestamp.erase(pkt_timestamp.end() - 1);
+                AlarmDatex alarm[5];
                 for (int n = 0; n < 5; n++)
                 {
-                    alarm[n].Timestamp = pkt_timestamp;
-                    alarm[n].timestamp = pc_time;
+                    alarm[n].datetime = pc_datetime;
+                    alarm[n].timestamp_ms = pc_timestamp_ms;
                     alarm[n].text = std::string(dri_al_msg_ptr.al_disp[n].text);
                     for (uint m = 0; m < alarm[n].text.length(); m++)
                     {
@@ -730,7 +726,6 @@ void Datex_ohmeda::from_packet_to_structures()
                         alarm[n].color = "DRI_PR3";
                         break;
                     }
-                    alarm[n].timestamp = std::time(nullptr);
                     if (dri_al_msg_ptr.al_disp[n].text_changed == 1)
                     {
                         m_AlarmList.push_back(alarm[n]);
@@ -746,7 +741,7 @@ void Datex_ohmeda::from_packet_to_structures()
 
 void Datex_ohmeda::save_data()
 {
-    write_to_rows();
+    save_numeric_to_csv(); // phdb
     save_alarm_to_csv();
     save_wave_to_csv();
 }
@@ -754,21 +749,26 @@ void Datex_ohmeda::save_data()
 void Datex_ohmeda::save_alarm_to_csv()
 {
     std::time_t timelapse = device->get_logger()->time_delay;
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
+
     for (uint i = 0; i < m_AlarmList.size(); i++)
     {
-        // Get local time
-        std::time_t pc_current_timestamp = std::time(nullptr);
-        std::string row;
         bool changed = false;
         int elementcount = 0;
+        std::string row;
 
-        if ((m_AlarmList[i].text.length()) > 0 && pc_current_timestamp > m_AlarmList[i].timestamp + timelapse && m_AlarmList[i].timestamp == m_AlarmList[0].timestamp)
+        if ((m_AlarmList[i].text.length()) > 0 &&
+            pc_timestamp_ms > m_AlarmList[i].timestamp_ms + timelapse &&
+            m_AlarmList[i].timestamp_ms == m_AlarmList[0].timestamp_ms)
         {
             changed = true;
             elementcount += 1;
-            row.append(m_AlarmList[i].Timestamp);
+            row.append(m_AlarmList[i].datetime);
             row.append(",");
-            row.append(std::to_string(m_AlarmList[i].timestamp));
+            row.append(std::to_string(m_AlarmList[i].timestamp_ms));
             row.append(",");
             row.append(m_AlarmList[i].text);
             row.append(",");
@@ -787,95 +787,119 @@ void Datex_ohmeda::save_alarm_to_csv()
 void Datex_ohmeda::save_wave_to_csv()
 {
     std::time_t timelapse = device->get_logger()->time_delay;
-    for (uint i = 0; i < m_WaveValList.size(); i++)
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
+
+    int empty_list_count = 0;
+
+    for (uint i = 0; i < m_WaveValueList.size(); i++)
     {
-        // Get local time
-        std::time_t current_pc_timestamp = std::time(nullptr);
-        std::string filename = filenames_wave[m_WaveValList[i].PhysioID];
-        double decimalshift = m_WaveValList[i].Unitshift;
-        std::string row;
+        std::string filename = filenames_wave[m_WaveValueList[i].physioid];
+        double decimalshift = m_WaveValueList[i].unitshift;
         bool changed = false;
         int elementcount = 0;
-        for (uint j = 0; j < m_WaveValList[i].Value.size(); j++)
+        std::string row;
+
+        for (uint j = 0; j < m_WaveValueList[i].value_list.size(); j++)
         {
-            if (current_pc_timestamp > m_WaveValList[i].TimeList[j] / 1000 + timelapse)
+            if (pc_timestamp_ms > m_WaveValueList[i].timestamp_ms_list[j] + timelapse)
             {
                 changed = true;
                 elementcount += 1;
-                std::string wave_val = validate_wave_data(m_WaveValList[i].Value[j], decimalshift, false);
-                row.append(m_WaveValList[i].Timestamp);
+                std::string wave_val = validate_wave_data(m_WaveValueList[i].value_list[j], decimalshift, false);
+                row.append(m_WaveValueList[i].datetime);
                 row.append(",");
                 row.append(wave_val);
                 row.append(",");
-                row.append(std::to_string(m_WaveValList[i].TimeList[j]));
+                row.append(std::to_string(m_WaveValueList[i].timestamp_ms_list[j]));
                 row.append(",\n");
             }
         }
+
         if (changed)
         {
             device->get_logger()->saving_to_file(filename, row);
-            m_WaveValList[i].Value.erase(m_WaveValList[i].Value.begin(), m_WaveValList[i].Value.begin() + elementcount);
-            m_WaveValList[i].TimeList.erase(m_WaveValList[i].TimeList.begin(), m_WaveValList[i].TimeList.begin() + elementcount);
+            m_WaveValueList[i].value_list.erase(
+                m_WaveValueList[i].value_list.begin(),
+                m_WaveValueList[i].value_list.begin() + elementcount);
+            m_WaveValueList[i].timestamp_ms_list.erase(
+                m_WaveValueList[i].timestamp_ms_list.begin(),
+                m_WaveValueList[i].timestamp_ms_list.begin() + elementcount);
         }
+
+        if (m_WaveValueList[i].timestamp_ms_list.size() == 0)
+        {
+            empty_list_count += 1;
+        }
+    }
+
+    if (empty_list_count > 0)
+    {
+        m_WaveValueList.erase(m_WaveValueList.begin(), m_WaveValueList.begin() + empty_list_count);
     }
 }
 
-void Datex_ohmeda::write_to_rows()
+void Datex_ohmeda::save_numeric_to_csv()
 {
+    if (m_NumericValueList.size() == 0)
+        return;
+
     std::time_t timelapse = device->get_logger()->time_delay;
-    if (m_NumericValList.size() != 0)
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
+
+    // Write header
+    write_header(filename_phdb);
+
+    // Write content
+    bool changed = false;
+    int elementcount = 0;
+    std::string row;
+    row.append(m_NumericValueList[0].datetime);
+    row.append(",");
+    row.append(std::to_string(m_NumericValueList[0].timestamp_ms));
+    row.append(",");
+
+    for (uint i = 0; i < m_NumericValueList.size(); i++)
     {
-        std::time_t current_pc_time = std::time(nullptr);
-        if (m_transmissionstart)
+        if (m_NumericValueList[i].timestamp_ms == m_NumericValueList[0].timestamp_ms &&
+            pc_timestamp_ms > (m_NumericValueList[i].timestamp_ms + timelapse))
         {
-            write_to_file_header(filename_phdb);
+            elementcount += 1;
+            changed = true;
+            row.append(m_NumericValueList[i].value);
+            row.append(",");
         }
+    }
+    row.append("\n");
 
-        std::string row;
-        row.append("\n");
-        row.append(m_NumericValList[0].Timestamp);
-        row.append(",");
-        row.append(std::to_string(m_NumericValList[0].timestamp));
-        row.append(",");
-        bool changed = false;
-        int elementcount = 0;
-
-        for (uint i = 0; i < m_NumericValList.size(); i++)
-        {
-            if (current_pc_time > m_NumericValList[i].timestamp + timelapse && m_NumericValList[i].timestamp == m_NumericValList[0].timestamp)
-            {
-                elementcount += 1;
-                changed = true;
-                row.append(m_NumericValList[i].Value);
-                row.append(",");
-            }
-        }
-
-        if (changed)
-        {
-            device->get_logger()->saving_to_file(filename_phdb, row);
-            m_NumericValList.erase(m_NumericValList.begin(), m_NumericValList.begin() + elementcount);
-        }
+    if (changed)
+    {
+        device->get_logger()->saving_to_file(filename_phdb, row);
+        m_NumericValueList.erase(m_NumericValueList.begin(), m_NumericValueList.begin() + elementcount);
     }
 }
 
-void Datex_ohmeda::write_to_file_header(std::string filename)
+void Datex_ohmeda::write_header(std::string filename)
 {
-    if (m_NumericValList.size() != 0 && m_transmissionstart)
+    if (m_NumericValueList.size() != 0 && m_transmissionstart)
     {
-        std::string headers;
-        headers.append("Time");
-        headers.append(",");
-        headers.append("time");
-        headers.append(",");
-
+        std::string header;
+        header.append("DateTime");
+        header.append(",");
+        header.append("Timestamp_ms");
+        header.append(",");
         for (uint i = 0; i < m_NumValHeaders.size(); i++)
         {
-            headers.append(m_NumValHeaders[i]);
-            headers.append(",");
+            header.append(m_NumValHeaders[i]);
+            header.append(",");
         }
-
-        device->get_logger()->saving_to_file(filename, headers);
+        header.append("\n");
+        device->get_logger()->saving_to_file(filename, header);
         m_transmissionstart = false;
         m_NumValHeaders.clear();
     }

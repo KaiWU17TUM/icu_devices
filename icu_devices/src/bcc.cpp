@@ -84,11 +84,14 @@ void Bcc::load_protocol_config(std::string config_file)
         } while (!Line.isNull());
     }
     // prepare files
-    std::time_t current_pc_time = std::time(nullptr);
-    filename_GeneralP = device->get_logger()->save_dir + std::to_string(current_pc_time) + "_GeneralParameters.csv";
-    filename_InfusionPumpP = device->get_logger()->save_dir + std::to_string(current_pc_time) + "_InfusionPumpParameters.csv";
-    filename_UndefinedP = device->get_logger()->save_dir + std::to_string(current_pc_time) + "_UndefinedParameters.csv";
-    filename_AdditionalP = device->get_logger()->save_dir + std::to_string(current_pc_time) + "_AdditionalParameters.csv";
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
+    filename_GeneralP = device->get_logger()->save_dir + std::to_string(pc_timestamp_ms) + "_GeneralParameters.csv";
+    filename_InfusionPumpP = device->get_logger()->save_dir + std::to_string(pc_timestamp_ms) + "_InfusionPumpParameters.csv";
+    filename_UndefinedP = device->get_logger()->save_dir + std::to_string(pc_timestamp_ms) + "_UndefinedParameters.csv";
+    filename_AdditionalP = device->get_logger()->save_dir + std::to_string(pc_timestamp_ms) + "_AdditionalParameters.csv";
 }
 
 void Bcc::send_request()
@@ -202,19 +205,17 @@ void Bcc::from_literal_to_packet(byte b)
 
 void Bcc::from_packet_to_structures()
 {
-    // the timestamp from pc [seconds since 01-Jan-1970] (unix timestamp)
+    auto now = std::chrono::system_clock::now();
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::string pc_datetime std::ctime(&t);
+    pc_datetime.erase(pc_datetime.end() - 1);
     unsigned long int pc_timestamp_ms =
         std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch())
+            now.time_since_epoch())
             .count();
 
     for (unsigned long i = 0; i < frame_buffer.size(); i++)
     {
-        // get time from PC
-        std::time_t t = std::time(nullptr);
-        std::string datetime = std::asctime(std::localtime(&t));
-        datetime.erase(datetime.end() - 1);
-
         std::string str(frame_buffer[i].begin(), frame_buffer[i].end());
         std::size_t pos_1 = str.find(">");
         std::size_t pos_2 = str.find(ETBCHAR);
@@ -284,15 +285,14 @@ void Bcc::from_packet_to_structures()
 
             // save the parsed data into list
             NumericValueBbraun numval;
-            numval.datetime = datetime;
+            numval.datetime = pc_datetime;
             numval.timestamp_ms = pc_timestamp_ms;
             numval.relativetime = block_content[0];
             numval.address = block_content[1];
             numval.value = block_content[3];
             numval.parametertype = parametertype;
             numval.physioid = parametername;
-            numval_list.push_back(numval);
-            header_list.push_back(parametername);
+            m_NumericValueList.push_back(numval);
         }
     }
     // each frame reply ACK
@@ -395,80 +395,91 @@ void Bcc::write_buffer(std::vector<byte> &bedid, std::vector<byte> &txbuf)
 
 void Bcc::save_data()
 {
-    for (uint i = 0; i < numval_list.size(); i++)
+    for (uint i = 0; i < m_NumericValueList.size(); i++)
     {
-        if (numval_list[0].parametertype == "GeneralParameters")
+        if (m_NumericValueList[0].parametertype == "GeneralParameters")
         {
-            save_num_value_list_row(filename_GeneralP, "GeneralParameters");
+            save_numeric_value_list_to_row(filename_GeneralP, "GeneralParameters");
         }
-        else if (numval_list[0].parametertype == "InfusionPumpParameters")
+        else if (m_NumericValueList[0].parametertype == "InfusionPumpParameters")
         {
-            save_num_value_list_row(filename_InfusionPumpP, "InfusionPumpParameters");
+            save_numeric_value_list_to_row(filename_InfusionPumpP, "InfusionPumpParameters");
         }
-        else if (numval_list[0].parametertype == "AdditionalParameters")
+        else if (m_NumericValueList[0].parametertype == "AdditionalParameters")
         {
-            save_num_value_list_row(filename_AdditionalP, "AdditionalParameters");
+            save_numeric_value_list_to_row(filename_AdditionalP, "AdditionalParameters");
         }
-        else if (numval_list[0].parametertype == "UndefinedParameters")
+        else if (m_NumericValueList[0].parametertype == "UndefinedParameters")
         {
-            save_num_value_list_row(filename_UndefinedP, "UndefinedParameters");
+            save_numeric_value_list_to_row(filename_UndefinedP, "UndefinedParameters");
         }
     }
 }
 
-void Bcc::save_num_value_list_row(std::string filename, std::string datatype)
+void Bcc::save_numeric_value_list_to_row(std::string filename, std::string datatype)
 {
-    std::time_t current_pc_time = std::time(nullptr);
-    std::string row;
-    row.append(numval_list[0].datetime);
-    row.append(",");
-    row.append(std::to_string(numval_list[0].timestamp_ms));
-    row.append(",");
-    row.append(numval_list[0].relativetime);
-    row.append(",");
-    row.append(numval_list[0].address);
-    row.append(",");
+    if (m_NumericValueList.size() == 0)
+        return;
+
+    std::time_t timelapse = device->get_logger()->time_delay;
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
+
+    // Write header
+    write_numeric_value_list_header(datatype, filename);
+
+    // Write content
     int elementcount = 0;
     bool changed = false;
-    int timelapse = device->get_logger()->time_delay;
+    std::string row;
+    row.append(m_NumericValueList[0].datetime);
+    row.append(",");
+    row.append(std::to_string(m_NumericValueList[0].timestamp_ms));
+    row.append(",");
+    row.append(m_NumericValueList[0].relativetime);
+    row.append(",");
+    row.append(m_NumericValueList[0].address);
+    row.append(",");
 
-    for (unsigned long i = 0; i < numval_list.size(); i++)
+    for (unsigned long i = 0; i < m_NumericValueList.size(); i++)
     {
-        if (numval_list[i].timestamp_ms == numval_list[0].timestamp_ms && current_pc_time > (numval_list[i].timestamp_ms + timelapse))
+        if (m_NumericValueList[i].timestamp_ms == m_NumericValueList[0].timestamp_ms &&
+            pc_timestamp_ms > (m_NumericValueList[i].timestamp_ms + timelapse))
         {
             changed = true;
-            write_num_header_list(datatype, filename);
-            if (numval_list[i].parametertype == datatype)
+            if (m_NumericValueList[i].parametertype == datatype)
             {
                 elementcount++;
                 int pos = 0;
-                if (numval_list[i].value == "")
+                if (m_NumericValueList[i].value == "")
                     row.append("-");
-                else if ((pos = numval_list[i].value.find(',')) != std::string::npos)
+                else if ((pos = m_NumericValueList[i].value.find(',')) != std::string::npos)
                 {
-                    numval_list[i].value[pos] = '.';
-                    row.append(numval_list[i].value);
+                    m_NumericValueList[i].value[pos] = '.';
+                    row.append(m_NumericValueList[i].value);
                 }
                 else
-                    row.append(numval_list[i].value);
+                    row.append(m_NumericValueList[i].value);
                 row.append(",");
             }
         }
     }
+    row.append("\n");
+
     if (changed)
     {
-        row.append("\n");
         device->get_logger()->saving_to_file(filename, row);
-        numval_list.erase(numval_list.begin(), numval_list.begin() + elementcount);
+        m_NumericValueList.erase(m_NumericValueList.begin(), m_NumericValueList.begin() + elementcount);
     }
 }
 
-void Bcc::write_num_header_list(std::string datatype, std::string filename)
+void Bcc::write_numeric_value_list_header(std::string datatype, std::string filename)
 {
-    if (write_header_for_data_type(datatype))
+    if (numeric_value_list_header_selector(datatype))
     {
         std::string header;
-
         header.append("DateTime");
         header.append(",");
         header.append("Timestamp_ms");
@@ -477,56 +488,48 @@ void Bcc::write_num_header_list(std::string datatype, std::string filename)
         header.append(",");
         header.append("Address");
         header.append(",");
-        for (unsigned long i = 0; i < numval_list.size(); i++)
+        for (unsigned long i = 0; i < m_NumericValueList.size(); i++)
         {
-            if (numval_list[i].parametertype == datatype && numval_list[i].timestamp_ms == numval_list[0].timestamp_ms)
+            if (m_NumericValueList[i].parametertype == datatype &&
+                m_NumericValueList[i].timestamp_ms == m_NumericValueList[0].timestamp_ms)
             {
-                header += numval_list[i].physioid;
+                header += m_NumericValueList[i].physioid;
                 header.append(",");
             }
         }
         header.append("\n");
         device->get_logger()->saving_to_file(filename, header);
-        header_list.clear();
     }
 }
 
-bool Bcc::write_header_for_data_type(std::string datatype)
+bool Bcc::numeric_value_list_header_selector(std::string datatype)
 {
     bool writeheader = true;
     if (datatype == "GeneralParameters")
     {
         if (m_transmissionstart)
-        {
             m_transmissionstart = false;
-        }
         else
             writeheader = false;
     }
     else if (datatype == "InfusionPumpParameters")
     {
         if (m_transmissionstart2)
-        {
             m_transmissionstart2 = false;
-        }
         else
             writeheader = false;
     }
     else if (datatype == "AdditionalParameters")
     {
         if (m_transmissionstart3)
-        {
             m_transmissionstart3 = false;
-        }
         else
             writeheader = false;
     }
     else if (datatype == "UndefinedParameters")
     {
         if (m_transmissionstart4)
-        {
             m_transmissionstart4 = false;
-        }
         else
             writeheader = false;
     }

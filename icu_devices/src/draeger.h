@@ -29,22 +29,22 @@ typedef unsigned char byte;
 
 // const std::vector<unsigned char> realtime_transmission_request {0x54, 0x30, 0x30, 0x30, 0x32, 0x30, 0x36, 0x30,0x33};
 
-struct NumVal
+struct NumericValueDraeger
 {
     unsigned int type;
-    std::string Timestamp;
-    std::string PhysioID;
-    std::string Value;
-    unsigned long int timestamp;
+    std::string datetime;
+    std::string physioid;
+    std::string value;
+    unsigned long int timestamp_ms;
 };
 
 struct AlarmInfo
 {
-    std::string Timestamp;
-    std::string AlarmPhrase;
-    std::string Priority;
-    std::string AlarmCode;
-    unsigned long int timestamp;
+    std::string datetime;
+    std::string alarmphrase;
+    std::string priority;
+    std::string alarmcode;
+    unsigned long int timestamp_ms;
 };
 
 struct RealtimeCfg

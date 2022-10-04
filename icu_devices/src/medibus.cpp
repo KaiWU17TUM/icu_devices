@@ -75,11 +75,14 @@ void Medibus::load_protocol_config(std::string config_file)
         } while (!Line.isNull());
     }
     // prepare filenames
-    std::time_t current_pc_time = std::time(nullptr);
-    filename_measurement = device->get_logger()->save_dir + (std::to_string(current_pc_time)) + "_measurement.csv";
-    filename_low_limit = device->get_logger()->save_dir + (std::to_string(current_pc_time)) + "_low_limit.csv";
-    filename_high_limit = device->get_logger()->save_dir + (std::to_string(current_pc_time)) + "_high_limit.csv";
-    filename_alarm = device->get_logger()->save_dir + (std::to_string(current_pc_time)) + "_Alarm.csv";
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
+    filename_measurement = device->get_logger()->save_dir + (std::to_string(pc_timestamp_ms)) + "_measurement.csv";
+    filename_low_limit = device->get_logger()->save_dir + (std::to_string(pc_timestamp_ms)) + "_low_limit.csv";
+    filename_high_limit = device->get_logger()->save_dir + (std::to_string(pc_timestamp_ms)) + "_high_limit.csv";
+    filename_alarm = device->get_logger()->save_dir + (std::to_string(pc_timestamp_ms)) + "_alarm.csv";
 
     alarm_low_limit_timer = new QTimer();
     QObject::connect(alarm_low_limit_timer, SIGNAL(timeout()), this, SLOT(request_alarm_low_limit()));
@@ -175,9 +178,17 @@ void Medibus::from_literal_to_packet(byte b)
 
 void Medibus::from_packet_to_structures()
 {
-    std::time_t result = std::time(nullptr);
-    pkt_timestamp = std::asctime(std::localtime(&result));
-    pkt_timestamp.erase(pkt_timestamp.end() - 1);
+    auto now = std::chrono::system_clock::now();
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::string pc_datetime std::ctime(&t);
+    pc_datetime.erase(pc_datetime.end() - 1);
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            now.time_since_epoch())
+            .count();
+
+    machine_datetime = pc_datetime;
+    machine_timestamp = pc_timestamp_ms;
 
     for (unsigned long i = 0; i < frame_buffer.size(); i++)
     {
@@ -376,13 +387,12 @@ void Medibus::parse_data_text_settings(std::vector<byte> &packetbuffer)
 
             std::string physio_id;
             physio_id = TextMessages.find(datacode)->second;
-            NumVal local_NumVal;
-            local_NumVal.Timestamp = pkt_timestamp;
-            local_NumVal.PhysioID = physio_id;
-            local_NumVal.Value = DataValue;
-            local_NumVal.timestamp = std::time(nullptr);
-            numval_list.push_back(local_NumVal);
-            header_list.push_back(physio_id);
+            NumericValueDraeger NumVal;
+            NumVal.datetime = machine_datetime;
+            NumVal.timestamp_ms = machine_timestamp;
+            NumVal.physioid = physio_id;
+            NumVal.value = DataValue;
+            m_NumericValueList.push_back(NumVal);
         }
     }
 }
@@ -415,13 +425,12 @@ void Medibus::parse_data_device_settings(std::vector<byte> &packetbuffer)
 
             std::string physio_id;
             physio_id = DeviceSettings.find(datacode)->second;
-            NumVal local_NumVal;
-            local_NumVal.Timestamp = pkt_timestamp;
-            local_NumVal.PhysioID = physio_id;
-            local_NumVal.Value = DataValue;
-            local_NumVal.timestamp = std::time(nullptr);
-            numval_list.push_back(local_NumVal);
-            header_list.push_back(physio_id);
+            NumericValueDraeger NumVal;
+            NumVal.datetime = machine_datetime;
+            NumVal.timestamp_ms = machine_timestamp;
+            NumVal.physioid = physio_id;
+            NumVal.value = DataValue;
+            m_NumericValueList.push_back(NumVal);
         }
     }
 }
@@ -429,8 +438,7 @@ void Medibus::parse_data_device_settings(std::vector<byte> &packetbuffer)
 void Medibus::parse_data_response_measured(std::vector<byte> &packetbuffer, byte type)
 {
     unsigned long framelen = packetbuffer.size();
-    unsigned long int grp_timestamp = std::time(nullptr);
-    ;
+
     if (framelen != 0)
     {
         std::vector<byte> response;
@@ -468,15 +476,13 @@ void Medibus::parse_data_response_measured(std::vector<byte> &packetbuffer, byte
                 physio_id = HighLimits.find(datacode)->second;
             }
 
-            NumVal local_NumVal;
-            local_NumVal.type = type;
-            local_NumVal.Timestamp = pkt_timestamp;
-            local_NumVal.PhysioID = physio_id;
-            local_NumVal.Value = DataValue;
-            local_NumVal.timestamp = grp_timestamp;
-
-            numval_list.push_back(local_NumVal);
-            header_list.push_back(physio_id);
+            NumericValueDraeger NumVal;
+            NumVal.type = type;
+            NumVal.datetime = machine_datetime;
+            NumVal.timestamp_ms = machine_timestamp;
+            NumVal.physioid = physio_id;
+            NumVal.value = DataValue;
+            m_NumericValueList.push_back(NumVal);
         }
     }
 }
@@ -496,17 +502,16 @@ void Medibus::parse_alarm(std::vector<byte> &packetbuffer)
         for (int i = 0; i < responselen; i = i + 15)
         {
             byte priority = response[i + 1];
-            std::string AlarmCode(response.begin() + i + 1, response.begin() + 3 + i);
+            std::string alarmcode(response.begin() + i + 1, response.begin() + 3 + i);
             std::string AlarmPhase(response.begin() + 3 + i, response.begin() + 15 + i);
 
-            AlarmInfo local_alarm;
-            local_alarm.Timestamp = pkt_timestamp;
-            local_alarm.AlarmCode = AlarmCode;
-            local_alarm.AlarmPhrase = AlarmPhase;
-            local_alarm.Priority = std::to_string(priority);
-            local_alarm.timestamp = std::time(nullptr);
-
-            alarm_list.push_back(local_alarm);
+            AlarmInfo alarm;
+            alarm.datetime = machine_datetime;
+            alarm.timestamp_ms = machine_timestamp;
+            alarm.alarmcode = alarmcode;
+            alarm.alarmphrase = AlarmPhase;
+            alarm.priority = std::to_string(priority);
+            m_AlarmInfoList.push_back(alarm);
         }
     }
 }
@@ -534,177 +539,174 @@ void Medibus::command_echo_response(std::vector<byte> &cmd)
 // functions for saving data
 void Medibus::save_data()
 {
-    save_alarm_list_rows();
-    if (numval_list.size() != 0)
+    save_m_AlarmInfoList_rows();
+    if (m_NumericValueList.size() != 0)
     {
-        if (numval_list[0].type == poll_request_config_measured_data_codepage1)
+        if (m_NumericValueList[0].type == poll_request_config_measured_data_codepage1)
         {
-            save_num_val_list_rows("MeasuredCP1");
+            save_numeric_value_list_to_row("MeasuredCP1");
         }
-        else if (numval_list[0].type == poll_request_low_alarm_limits)
+        else if (m_NumericValueList[0].type == poll_request_low_alarm_limits)
         {
-            save_num_val_list_rows("AlarmLow");
+            save_numeric_value_list_to_row("AlarmLow");
         }
-        else if (numval_list[0].type == poll_request_high_alarm_limits)
+        else if (m_NumericValueList[0].type == poll_request_high_alarm_limits)
         {
-            save_num_val_list_rows("AlarmHigh");
+            save_numeric_value_list_to_row("AlarmHigh");
         }
     }
 }
 
-void Medibus::save_num_val_list_rows(std::string datatype)
+void Medibus::save_numeric_value_list_to_row(std::string datatype)
 {
-    if (numval_list.size() != 0)
+    if (m_NumericValueList.size() == 0)
+        return;
+
+    std::time_t timelapse = device->get_logger()->time_delay;
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
+
+    std::string filename;
+    if (datatype == "MeasuredCP1")
     {
-        std::time_t current_pc_time = std::time(nullptr);
-        int timelapse = device->get_logger()->time_delay;
-        std::string filename;
-        if (datatype == "MeasuredCP1")
-        {
-            filename = filename_measurement;
-        }
-        else if (datatype == "AlarmLow")
-        {
-            filename = filename_low_limit;
-        }
-        else if (datatype == "AlarmHigh")
-        {
-            filename = filename_high_limit;
-        }
+        filename = filename_measurement;
+    }
+    else if (datatype == "AlarmLow")
+    {
+        filename = filename_low_limit;
+    }
+    else if (datatype == "AlarmHigh")
+    {
+        filename = filename_high_limit;
+    }
 
-        write_num_header_list(datatype, filename);
+    write_numeric_value_list_header(datatype, filename);
 
-        std::string row;
-        bool changed = false;
-        int elementcount = 0;
+    bool changed = false;
+    int elementcount = 0;
+    std::string row;
+    row.append(m_NumericValueList[0].datetime);
+    row.append(",");
 
-        row += (numval_list[0].Timestamp);
-        row.append(",");
-
-        for (uint i = 0; i < numval_list.size(); i++)
+    for (uint i = 0; i < m_NumericValueList.size(); i++)
+    {
+        if (m_NumericValueList[i].timestamp_ms == m_NumericValueList[0].timestamp_ms &&
+            pc_timestamp_ms > (m_NumericValueList[i].timestamp_ms + timelapse))
         {
-            if (current_pc_time > (numval_list[i].timestamp + timelapse) && numval_list[i].timestamp == numval_list[0].timestamp)
-            {
-                elementcount += 1;
-                changed = true;
-                row += (numval_list[i].Value);
-                row.append(",");
-            }
+            elementcount += 1;
+            changed = true;
+            row.append(m_NumericValueList[i].value);
+            row.append(",");
         }
-        row.append("\n");
-        if (changed)
-        {
-            device->get_logger()->saving_to_file(filename, row);
-            qDebug() << "write data to file";
-            numval_list.erase(numval_list.begin(), numval_list.begin() + elementcount);
-        }
+    }
+    row.append("\n");
+
+    if (changed)
+    {
+        device->get_logger()->saving_to_file(filename, row);
+        qDebug() << "write data to file";
+        m_NumericValueList.erase(m_NumericValueList.begin(), m_NumericValueList.begin() + elementcount);
     }
 }
 
-void Medibus::save_alarm_list_rows()
+void Medibus::save_m_AlarmInfoList_rows()
 {
-    if (alarm_list.size() != 0)
+    if (m_AlarmInfoList.size() == 0)
+        return;
+
+    std::time_t timelapse = device->get_logger()->time_delay;
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
+
+    bool changed = false;
+    int elementcount = 0;
+    std::string row;
+
+    for (uint i = 0; i < m_AlarmInfoList.size(); i++)
     {
-        std::time_t current_pc_time = std::time(nullptr);
-        int timelapse = device->get_logger()->time_delay;
-
-        std::string row;
-        bool changed = false;
-        int elementcount = 0;
-
-        for (uint i = 0; i < alarm_list.size(); i++)
+        if (m_AlarmInfoList[i].timestamp_ms == m_AlarmInfoList[0].timestamp_ms &&
+            pc_timestamp_ms > (m_AlarmInfoList[i].timestamp_ms + timelapse))
         {
-            if (current_pc_time > (alarm_list[i].timestamp + timelapse) && alarm_list[i].timestamp == alarm_list[0].timestamp)
-            {
-                elementcount += 1;
-                changed = true;
-                row += (alarm_list[i].Timestamp);
-                row.append(",");
-                row += (alarm_list[i].AlarmCode);
-                row.append(",");
-                row += (alarm_list[i].Priority);
-                row.append(",");
-                row += (alarm_list[i].AlarmPhrase);
-                row.append(",\n");
-            }
+            elementcount += 1;
+            changed = true;
+            row.append(m_AlarmInfoList[i].datetime);
+            row.append(",");
+            row.append(m_AlarmInfoList[i].alarmcode);
+            row.append(",");
+            row.append(m_AlarmInfoList[i].priority);
+            row.append(",");
+            row.append(m_AlarmInfoList[i].alarmphrase);
+            row.append(",\n");
         }
-        row.append("\n");
-        if (changed)
-        {
-            device->get_logger()->saving_to_file(filename_alarm, row);
-            qDebug() << "write alarm to file";
-            alarm_list.erase(alarm_list.begin(), alarm_list.begin() + elementcount);
-        }
+    }
+
+    if (changed)
+    {
+        device->get_logger()->saving_to_file(filename_alarm, row);
+        qDebug() << "write alarm to file";
+        m_AlarmInfoList.erase(m_AlarmInfoList.begin(), m_AlarmInfoList.begin() + elementcount);
     }
 }
 
-void Medibus::write_num_header_list(std::string datatype, std::string filename)
+void Medibus::write_numeric_value_list_header(std::string datatype, std::string filename)
 {
-    if (write_header_for_data_type(datatype))
+    if (numeric_value_list_header_selector(datatype))
     {
         std::string header;
         header.append("Time");
         header.append(",");
-        for (unsigned long i = 0; i < numval_list.size(); i++)
+        for (unsigned long i = 0; i < m_NumericValueList.size(); i++)
         {
-            if (numval_list[i].timestamp == numval_list[0].timestamp)
+            if (m_NumericValueList[i].timestamp_ms == m_NumericValueList[0].timestamp_ms)
             {
-                header += numval_list[i].PhysioID;
+                header.append(m_NumericValueList[i].physioid);
                 header.append(",");
             }
         }
         header.append("\n");
         device->get_logger()->saving_to_file(filename, header);
-
-        header_list.clear();
     }
 }
 
-bool Medibus::write_header_for_data_type(std::string datatype)
+bool Medibus::numeric_value_list_header_selector(std::string datatype)
 {
     bool writeheader = true;
     if (datatype == "MeasuredCP1")
     {
         if (m_transmissionstart)
-        {
             m_transmissionstart = false;
-        }
         else
             writeheader = false;
     }
     else if (datatype == "DeviceSettings")
     {
         if (m_transmissionstart2)
-        {
             m_transmissionstart2 = false;
-        }
         else
             writeheader = false;
     }
     else if (datatype == "TextMessages")
     {
         if (m_transmissionstart3)
-        {
             m_transmissionstart3 = false;
-        }
         else
             writeheader = false;
     }
     else if (datatype == "AlarmLow")
     {
         if (m_transmissionstart4)
-        {
             m_transmissionstart4 = false;
-        }
         else
             writeheader = false;
     }
     else if (datatype == "AlarmHigh")
     {
         if (m_transmissionstart5)
-        {
             m_transmissionstart5 = false;
-        }
         else
             writeheader = false;
     }
@@ -803,7 +805,7 @@ void Medibus::parse_realtime_data_configs(std::vector<byte> &packetbuffer)
                 }
             }
             local_cfg.max_bin = max_bin;
-            cfg_list.push_back(local_cfg);
+            m_RealtimeCfgList.push_back(local_cfg);
         }
     }
 }
@@ -838,24 +840,23 @@ void Medibus::parse_realtime_data(std::vector<byte> &packetbuffer)
                     int value = int(front_num) + int(back_num) * (64);
                     float value2 = 0;
 
-                    for (uint j = 0; j < cfg_list.size(); j++)
+                    for (uint j = 0; j < m_RealtimeCfgList.size(); j++)
                     {
-                        if (cfg_list[j].id == physio_id)
+                        if (m_RealtimeCfgList[j].id == physio_id)
                         {
-                            value2 = cfg_list[j].minimal_val + value * (cfg_list[j].maximal_val - cfg_list[j].minimal_val) / float(cfg_list[j].max_bin);
+                            value2 = m_RealtimeCfgList[j].minimal_val + value * (m_RealtimeCfgList[j].maximal_val - m_RealtimeCfgList[j].minimal_val) / float(m_RealtimeCfgList[j].max_bin);
                             break;
                         }
                     }
 
                     data_value = std::to_string(value2);
 
-                    NumVal local_NumVal;
-                    local_NumVal.Timestamp = pkt_timestamp;
-                    local_NumVal.PhysioID = physio_id;
-                    local_NumVal.Value = data_value;
+                    NumericValueDraeger local_NumVal;
+                    local_NumVal.datetime = pkt_timestamp;
+                    local_NumVal.physioid = physio_id;
+                    local_NumVal.value = data_value;
 
-                    numval_list.push_back(local_NumVal);
-                    // header_list.push_back(physio_id);
+                    m_NumericValueList.push_back(local_NumVal);
                     value_index = value_index + 1;
                 }
             }
@@ -865,7 +866,7 @@ void Medibus::parse_realtime_data(std::vector<byte> &packetbuffer)
                 // TODO::deal with sync command
             }
         }
-        // save_num_val_list_rows("RealtimeData");
-        // numval_list.clear();
+        // save_numeric_value_list_to_row("RealtimeData");
+        // m_NumericValueList.clear();
     }
 }

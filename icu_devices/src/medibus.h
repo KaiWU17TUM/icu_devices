@@ -49,16 +49,17 @@ private:
     std::string filename_low_limit;
     std::string filename_high_limit;
     std::string filename_alarm;
-    std::string pkt_timestamp;
+
+    std::string machine_datetime;
+    unsigned long int machine_timestamp;
 
     std::vector<short> realtime_data_list;
     std::vector<unsigned char> sync_cmd;
     std::vector<unsigned char> realtime_transmission_request;
 
-    std::vector<NumVal> numval_list;
-    std::vector<AlarmInfo> alarm_list;
-    std::vector<std::string> header_list;
-    std::vector<RealtimeCfg> cfg_list;
+    std::vector<NumericValueDraeger> m_NumericValueList;
+    std::vector<AlarmInfo> m_AlarmInfoList;
+    std::vector<RealtimeCfg> m_RealtimeCfgList;
 
     void load_protocol_config(std::string config_file);
     void parse_data_text_settings(std::vector<byte> &packetbuffer);
@@ -69,10 +70,10 @@ private:
     void parse_realtime_data_configs(std::vector<byte> &packetbuffer);
     void parse_realtime_data(std::vector<byte> &packetbuffer);
 
-    void save_num_val_list_rows(std::string datatype);
-    void save_alarm_list_rows();
-    void write_num_header_list(std::string datatype, std::string filename);
-    bool write_header_for_data_type(std::string datatype);
+    void save_numeric_value_list_to_row(std::string datatype);
+    void save_m_AlarmInfoList_rows();
+    void write_numeric_value_list_header(std::string datatype, std::string filename);
+    bool numeric_value_list_header_selector(std::string datatype);
 
 public slots:
     void request_icc()
