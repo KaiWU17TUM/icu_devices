@@ -1,8 +1,10 @@
 #ifndef BCC_H
 #define BCC_H
+#include <chrono>
+#include <QObject>
 #include "protocol.h"
 #include "bbraun_const.h"
-#include <QObject>
+#include "device.h"
 
 class Bcc : public Protocol
 {
@@ -37,7 +39,7 @@ private:
     std::string filename_UndefinedP;
     std::string filename_AdditionalP;
 
-    std::vector<NumValB> numval_list;
+    std::vector<NumericValueBbraun> numval_list;
     std::vector<std::string> header_list;
 
     void load_protocol_config(std::string config_file);

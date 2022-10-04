@@ -8,6 +8,7 @@
 #include "medibus.h"
 #include <string>
 #include <fstream>
+#include <chrono>
 #include <QSerialPort>
 #include <QByteArray>
 #include <vector>

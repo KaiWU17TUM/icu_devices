@@ -269,15 +269,15 @@ static std::map<std::string, std::string> AdditionalParameters{
     stringpair_t2("LASTAUTOPROGERR", "Last error reported by AutoProgramming"),
 };
 
-struct NumValB
+struct NumericValueBbraun
 {
-    std::string Timestamp;
-    unsigned long int timestamp;
-    std::string Relativetime;
-    std::string Address;
-    std::string Parametertype;
-    std::string PhysioID;
-    std::string Value;
+    std::string datetime;
+    unsigned long int timestamp_ms;
+    std::string relativetime;
+    std::string address;
+    std::string parametertype;
+    std::string physioid;
+    std::string value;
 };
 
 #endif // BBRAUN_CONST_H

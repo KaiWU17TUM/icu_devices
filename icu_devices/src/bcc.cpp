@@ -1,6 +1,6 @@
 #include "bcc.h"
-#include "device.h"
-#include <QObject>
+// #include "device.h"
+// #include <QObject>
 
 // helper functions
 byte compute_checksum(std::vector<byte> bytes)
@@ -202,15 +202,18 @@ void Bcc::from_literal_to_packet(byte b)
 
 void Bcc::from_packet_to_structures()
 {
-    // the timestamp from pc [seconds since 01-Jan-1970]
-    unsigned long int pc_time = std::time(nullptr);
+    // the timestamp from pc [seconds since 01-Jan-1970] (unix timestamp)
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
 
     for (unsigned long i = 0; i < frame_buffer.size(); i++)
     {
         // get time from PC
-        std::time_t result = std::time(nullptr);
-        std::string pkt_timestamp = std::asctime(std::localtime(&result));
-        pkt_timestamp.erase(pkt_timestamp.end() - 1);
+        std::time_t t = std::time(nullptr);
+        std::string datetime = std::asctime(std::localtime(&t));
+        datetime.erase(datetime.end() - 1);
 
         std::string str(frame_buffer[i].begin(), frame_buffer[i].end());
         std::size_t pos_1 = str.find(">");
@@ -280,14 +283,14 @@ void Bcc::from_packet_to_structures()
             }
 
             // save the parsed data into list
-            NumValB numval;
-            numval.Timestamp = pkt_timestamp;
-            numval.timestamp = pc_time;
-            numval.Relativetime = block_content[0];
-            numval.Address = block_content[1];
-            numval.Value = block_content[3];
-            numval.Parametertype = parametertype;
-            numval.PhysioID = parametername;
+            NumericValueBbraun numval;
+            numval.datetime = datetime;
+            numval.timestamp = pc_timestamp_ms;
+            numval.relativetime = block_content[0];
+            numval.address = block_content[1];
+            numval.value = block_content[3];
+            numval.parametertype = parametertype;
+            numval.physioid = parametername;
             numval_list.push_back(numval);
             header_list.push_back(parametername);
         }
@@ -394,19 +397,19 @@ void Bcc::save_data()
 {
     for (uint i = 0; i < numval_list.size(); i++)
     {
-        if (numval_list[0].Parametertype == "GeneralParameters")
+        if (numval_list[0].parametertype == "GeneralParameters")
         {
             save_num_value_list_row(filename_GeneralP, "GeneralParameters");
         }
-        else if (numval_list[0].Parametertype == "InfusionPumpParameters")
+        else if (numval_list[0].parametertype == "InfusionPumpParameters")
         {
             save_num_value_list_row(filename_InfusionPumpP, "InfusionPumpParameters");
         }
-        else if (numval_list[0].Parametertype == "AdditionalParameters")
+        else if (numval_list[0].parametertype == "AdditionalParameters")
         {
             save_num_value_list_row(filename_AdditionalP, "AdditionalParameters");
         }
-        else if (numval_list[0].Parametertype == "UndefinedParameters")
+        else if (numval_list[0].parametertype == "UndefinedParameters")
         {
             save_num_value_list_row(filename_UndefinedP, "UndefinedParameters");
         }
@@ -417,11 +420,13 @@ void Bcc::save_num_value_list_row(std::string filename, std::string datatype)
 {
     std::time_t current_pc_time = std::time(nullptr);
     std::string row;
-    row.append(numval_list[0].Timestamp);
+    row.append(numval_list[0].datetime);
     row.append(",");
-    row.append(numval_list[0].Relativetime);
+    row.append(std::to_string(numval_list[0].timestamp_ms));
     row.append(",");
-    row.append(numval_list[0].Address);
+    row.append(numval_list[0].relativetime);
+    row.append(",");
+    row.append(numval_list[0].address);
     row.append(",");
     int elementcount = 0;
     bool changed = false;
@@ -433,19 +438,19 @@ void Bcc::save_num_value_list_row(std::string filename, std::string datatype)
         {
             changed = true;
             write_num_header_list(datatype, filename);
-            if (numval_list[i].Parametertype == datatype)
+            if (numval_list[i].parametertype == datatype)
             {
                 elementcount++;
                 int pos = 0;
-                if (numval_list[i].Value == "")
+                if (numval_list[i].value == "")
                     row.append("-");
-                else if ((pos = numval_list[i].Value.find(',')) != std::string::npos)
+                else if ((pos = numval_list[i].value.find(',')) != std::string::npos)
                 {
-                    numval_list[i].Value[pos] = '.';
-                    row.append(numval_list[i].Value);
+                    numval_list[i].value[pos] = '.';
+                    row.append(numval_list[i].value);
                 }
                 else
-                    row.append(numval_list[i].Value);
+                    row.append(numval_list[i].value);
                 row.append(",");
             }
         }
@@ -464,7 +469,9 @@ void Bcc::write_num_header_list(std::string datatype, std::string filename)
     {
         std::string header;
 
-        header.append("Time");
+        header.append("DateTime");
+        header.append(",");
+        header.append("Timestamp_ms");
         header.append(",");
         header.append("RelativeTime");
         header.append(",");
@@ -472,9 +479,9 @@ void Bcc::write_num_header_list(std::string datatype, std::string filename)
         header.append(",");
         for (unsigned long i = 0; i < numval_list.size(); i++)
         {
-            if (numval_list[i].Parametertype == datatype && numval_list[i].timestamp == numval_list[0].timestamp)
+            if (numval_list[i].parametertype == datatype && numval_list[i].timestamp_ms == numval_list[0].timestamp_ms)
             {
-                header += numval_list[i].PhysioID;
+                header += numval_list[i].physioid;
                 header.append(",");
             }
         }

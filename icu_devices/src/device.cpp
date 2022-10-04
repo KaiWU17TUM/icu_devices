@@ -118,7 +118,10 @@ void Device::write_buffer(const char *temptxbuff, qint64 len)
  */
 std::string Device::get_measurement_folder_name(std::string config_file)
 {
-    std::time_t current_pc_time = std::time(nullptr);
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
     std::ifstream cfg_file(config_file);
     std::string room;
     std::string bed;
@@ -156,6 +159,6 @@ std::string Device::get_measurement_folder_name(std::string config_file)
     {
         std::cerr << "Couldn't open config file for reading.\n";
     }
-    folder_name = path + std::to_string(current_pc_time) + "_" + room + "_" + bed;
+    folder_name = path + std::to_string(pc_timestamp_ms) + "_" + room + "_" + bed;
     return folder_name;
 }
