@@ -285,7 +285,7 @@ void Bcc::from_packet_to_structures()
             // save the parsed data into list
             NumericValueBbraun numval;
             numval.datetime = datetime;
-            numval.timestamp = pc_timestamp_ms;
+            numval.timestamp_ms = pc_timestamp_ms;
             numval.relativetime = block_content[0];
             numval.address = block_content[1];
             numval.value = block_content[3];
@@ -434,7 +434,7 @@ void Bcc::save_num_value_list_row(std::string filename, std::string datatype)
 
     for (unsigned long i = 0; i < numval_list.size(); i++)
     {
-        if (numval_list[i].timestamp == numval_list[0].timestamp && current_pc_time > (numval_list[i].timestamp + timelapse))
+        if (numval_list[i].timestamp_ms == numval_list[0].timestamp_ms && current_pc_time > (numval_list[i].timestamp_ms + timelapse))
         {
             changed = true;
             write_num_header_list(datatype, filename);
