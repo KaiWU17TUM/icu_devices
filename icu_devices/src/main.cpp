@@ -6,23 +6,37 @@
 
 int main(int argc, char *argv[])
 {
+
+    if(argc<2)
+    {
+        printf("Please enter the path to the config folder...\n");
+        return 0;
+    }
+    if(argc>2)
+    {
+        printf("Too much arguments. Please enter only the path to the config folder...\n");
+        return 0;
+    }
+
+    std::string base_config_path = argv[1];
+
     QCoreApplication a(argc, argv);
     // B,C,D => USB1,2,3
 
     // Uncomment the following lines to enable or disable the data retrieving from hardwares
-    std::string general_config_file = "./cfg/general_config.txt";
+    std::string general_config_file = base_config_path + "/general_config.txt";
 
-    std::string ge_config_file = "./cfg/ge_config.txt";
+    std::string ge_config_file = base_config_path + "/ge_config.txt";
     Device my_monitor("ge_monitor_b650", ge_config_file, general_config_file, "datex_ohmeda");
     my_monitor.start();
 
-    std::string bb_config_file = "./cfg/bb_config.txt";
+    std::string bb_config_file = base_config_path + "/bb_config.txt";
     Device my_perfusor("bbraun", bb_config_file, general_config_file, "bcc");
     my_perfusor.start();
 
-    //    std::string ev_config_file = "./cfg/ev_config.txt";
-    //    Device my_evita4_vent("evta4", ev_config_file, general_config_file, "medibus");
-    //    my_evita4_vent.start();
+    std::string ev_config_file = base_config_path + "/ev_config.txt";
+    Device my_evita4_vent("evta4", ev_config_file, general_config_file, "medibus");
+    my_evita4_vent.start();
 
     /****************************************************************************************************************************/
     // Codes below are for debugging purpose, please ignore them
