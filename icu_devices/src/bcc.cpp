@@ -51,6 +51,7 @@ void int_save_to_buffer(int integer, std::vector<byte> &bytes)
 Bcc::Bcc(std::string config_file, Device *device) : Protocol{config_file, device}
 {
     load_protocol_config(config_file);
+    create_files();
 }
 
 /**
@@ -83,7 +84,14 @@ void Bcc::load_protocol_config(std::string config_file)
             }
         } while (!Line.isNull());
     }
-    // prepare files
+}
+
+/**
+ * @brief Bcc::create_files: creates file for saving
+ * @param config_file
+ */
+void Bcc::create_files()
+{
     unsigned long int pc_timestamp_ms =
         std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch())
@@ -92,6 +100,7 @@ void Bcc::load_protocol_config(std::string config_file)
     filename_InfusionPumpP = device->get_logger()->save_dir + std::to_string(pc_timestamp_ms) + "_InfusionPumpParameters.csv";
     filename_UndefinedP = device->get_logger()->save_dir + std::to_string(pc_timestamp_ms) + "_UndefinedParameters.csv";
     filename_AdditionalP = device->get_logger()->save_dir + std::to_string(pc_timestamp_ms) + "_AdditionalParameters.csv";
+    create_files_timer = pc_timestamp_ms;
 }
 
 void Bcc::send_request()
@@ -100,6 +109,85 @@ void Bcc::send_request()
     request_timer = new QTimer();
     QObject::connect(request_timer, SIGNAL(timeout()), this, SLOT(send_get_mem_request()));
     request_timer->start(interval);
+}
+
+void Bcc::write_buffer(std::vector<byte> &bedid, std::vector<byte> &txbuf)
+{
+    std::vector<byte> temptxbuff;
+    temptxbuff.push_back(SOHCHAR);
+    // deal with length
+    int totalframelen = 15 + bedid.size() + txbuf.size();
+    int_save_to_buffer(totalframelen, temptxbuff);
+    temptxbuff.push_back(STXCHAR);
+    for (unsigned long i = 0; i < bedid.size(); i++)
+    {
+        temptxbuff.push_back(bedid[i]);
+    }
+
+    temptxbuff.push_back('>');
+
+    for (unsigned long i = 0; i < txbuf.size(); i++)
+    {
+        temptxbuff.push_back(txbuf[i]);
+    }
+    temptxbuff.push_back(ETXCHAR);
+
+    int checksum = compute_checksum(temptxbuff);
+    int_save_to_buffer(checksum, temptxbuff);
+    temptxbuff.push_back(EOTCHAR);
+
+    // do character stuffing
+    for (unsigned long i = 0; i < temptxbuff.size(); i++)
+    {
+        char bchar = temptxbuff[i];
+        switch (bchar)
+        {
+        case DCHAR: // D->EX
+            temptxbuff[i] = ECHAR;
+            temptxbuff.insert(temptxbuff.begin() + i + 1, XCHAR);
+            i = i + 1;
+            break;
+        case ECHAR: // E->EE
+            temptxbuff.insert(temptxbuff.begin() + i + 1, ECHAR);
+            i = i + 1;
+            break;
+        case dCHAR: // d->ex
+            temptxbuff[i] = eCHAR;
+            temptxbuff.insert(temptxbuff.begin() + i + 1, xCHAR);
+            i = i + 1;
+            break;
+        case eCHAR: // e->ee
+            temptxbuff.insert(temptxbuff.begin() + i + 1, eCHAR);
+            i = i + 1;
+            break;
+        default:
+            break;
+        }
+    }
+    //    const char* payload_data = (const char*)&temptxbuff[0];
+    device->write_buffer((const char *)&temptxbuff[0], temptxbuff.size());
+}
+
+/**
+ * @brief Bcc::request_initialize_connection: start the connection with device
+ */
+void Bcc::request_initialize_connection()
+{
+    std::vector<unsigned char> bedid = {'1', '/', '1', '/', '1'};
+    std::vector<unsigned char> command = {'A', 'D', 'M', 'I', 'N', ':', 'A', 'L', 'I', 'V', 'E'};
+    qDebug() << "sending init msg";
+    write_buffer(bedid, command);
+}
+
+/**
+ * @brief Bcc::send_get_mem_request: send GET_MEM command
+ */
+void Bcc::send_get_mem_request()
+{
+    std::vector<byte> bedid = m_bedid;
+    std::vector<unsigned char> command = {'M', 'E', 'M', ':', 'G', 'E', 'T'};
+    qDebug() << "sending get mem request";
+    write_buffer(bedid, command);
 }
 
 void Bcc::from_literal_to_packet(byte b)
@@ -311,90 +399,20 @@ void Bcc::send_ack()
     device->write_buffer(payload_data, temptxbuff.size());
 }
 
-/**
- * @brief Bcc::send_get_mem_request: send GET_MEM command
- */
-void Bcc::send_get_mem_request()
-{
-    std::vector<byte> bedid = m_bedid;
-    std::vector<unsigned char> command = {'M', 'E', 'M', ':', 'G', 'E', 'T'};
-    qDebug() << "sending get mem request";
-    write_buffer(bedid, command);
-}
-
-/**
- * @brief Bcc::request_initialize_connection: start the connection with device
- */
-void Bcc::request_initialize_connection()
-{
-    std::vector<unsigned char> bedid = {'1', '/', '1', '/', '1'};
-    std::vector<unsigned char> command = {'A', 'D', 'M', 'I', 'N', ':', 'A', 'L', 'I', 'V', 'E'};
-    qDebug() << "sending init msg";
-    write_buffer(bedid, command);
-}
-
-void Bcc::write_buffer(std::vector<byte> &bedid, std::vector<byte> &txbuf)
-{
-    std::vector<byte> temptxbuff;
-    temptxbuff.push_back(SOHCHAR);
-    // deal with length
-    int totalframelen = 15 + bedid.size() + txbuf.size();
-    int_save_to_buffer(totalframelen, temptxbuff);
-    temptxbuff.push_back(STXCHAR);
-    for (unsigned long i = 0; i < bedid.size(); i++)
-    {
-        temptxbuff.push_back(bedid[i]);
-    }
-
-    temptxbuff.push_back('>');
-
-    for (unsigned long i = 0; i < txbuf.size(); i++)
-    {
-        temptxbuff.push_back(txbuf[i]);
-    }
-    temptxbuff.push_back(ETXCHAR);
-
-    int checksum = compute_checksum(temptxbuff);
-    int_save_to_buffer(checksum, temptxbuff);
-    temptxbuff.push_back(EOTCHAR);
-
-    // do character stuffing
-    for (unsigned long i = 0; i < temptxbuff.size(); i++)
-    {
-        char bchar = temptxbuff[i];
-        switch (bchar)
-        {
-        case DCHAR: // D->EX
-            temptxbuff[i] = ECHAR;
-            temptxbuff.insert(temptxbuff.begin() + i + 1, XCHAR);
-            i = i + 1;
-            break;
-        case ECHAR: // E->EE
-            temptxbuff.insert(temptxbuff.begin() + i + 1, ECHAR);
-            i = i + 1;
-            break;
-        case dCHAR: // d->ex
-            temptxbuff[i] = eCHAR;
-            temptxbuff.insert(temptxbuff.begin() + i + 1, xCHAR);
-            i = i + 1;
-            break;
-        case eCHAR: // e->ee
-            temptxbuff.insert(temptxbuff.begin() + i + 1, eCHAR);
-            i = i + 1;
-            break;
-        default:
-            break;
-        }
-    }
-    //    const char* payload_data = (const char*)&temptxbuff[0];
-    device->write_buffer((const char *)&temptxbuff[0], temptxbuff.size());
-}
-
-/*************************************************************/
+/******************************************************************************/
 // functions for saving data
 
 void Bcc::save_data()
 {
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
+    if (pc_timestamp_ms-create_files_timer_ms > 60*60*1000)
+    {
+        create_files();
+    }
+
     for (uint i = 0; i < m_NumericValueList.size(); i++)
     {
         if (m_NumericValueList[0].parametertype == "GeneralParameters")
@@ -445,6 +463,7 @@ void Bcc::save_numeric_value_list_to_row(std::string filename, std::string datat
 
     for (unsigned long i = 0; i < m_NumericValueList.size(); i++)
     {
+        // N Hz data (we do not have ns resolution) + data saving delay.
         if (m_NumericValueList[i].timestamp_ms == m_NumericValueList[0].timestamp_ms &&
             pc_timestamp_ms > (m_NumericValueList[i].timestamp_ms + timelapse))
         {

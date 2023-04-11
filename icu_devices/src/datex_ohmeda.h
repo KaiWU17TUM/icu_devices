@@ -13,21 +13,23 @@ class Datex_ohmeda : public Protocol
 {
 public:
     Datex_ohmeda(std::string config_file, Device *device);
+    void send_request();
     void from_literal_to_packet(byte b);
     void from_packet_to_structures();
-    void save_data();
-    void send_request();
     void write_buffer(byte *payload, int length);
+    void save_data();
     ~Datex_ohmeda() = default;
 
 private:
+    unsigned long int create_files_timer_ms;
+
+    std::string record_datetime;
+    unsigned long int record_timestamp;
+
     std::vector<struct NumericValueDatex> m_NumericValueList;
     std::vector<struct WaveValueDatex> m_WaveValueList;
     std::vector<struct AlarmDatex> m_AlarmList;
     std::vector<std::string> m_NumValHeaders;
-
-    std::string machine_datetime;
-    unsigned long int machine_timestamp;
 
     bool m_fstart = true;
     bool m_storestart = false;
@@ -42,6 +44,7 @@ private:
     std::vector<byte> wave_ids;
 
     void load_protocol_config(std::string config_file);
+    void create_files();
     void save_basic_sub_record(datex::dri_phdb driSR);
     void save_ext1_and_ext2_and_ext3_record(datex::dri_phdb driSR);
     void validate_add_data(std::string physio_id, short value,

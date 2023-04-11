@@ -14,7 +14,7 @@ class Logger
 public:
     std::string save_dir;
     std::time_t time_delay;
-    Logger(const std::string config_file, std::string filename);
+    Logger(const std::string config_file, std::string base_folder);
     void connect_logger(const QObject *receiver, const char *slot);
     void start_logging();
     void saving_to_file(std::string filename, std::string content);
@@ -22,7 +22,9 @@ public:
 private:
     QTimer *logger_timer;
     std::time_t logging_period;
+    std::string base_save_dir;
     void load_logger_settings(const std::string config_file);
+    void create_logger_directory();
 };
 
 #endif // LOGGER_H

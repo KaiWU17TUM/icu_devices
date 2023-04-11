@@ -29,6 +29,8 @@ void add_checksum(std::vector<byte> &payload)
 Medibus::Medibus(std::string config_file, Device *device) : Protocol(config_file, device)
 {
     load_protocol_config(config_file);
+    create_files();
+    create_request_timers();
 }
 
 /**
@@ -74,7 +76,14 @@ void Medibus::load_protocol_config(std::string config_file)
             }
         } while (!Line.isNull());
     }
-    // prepare filenames
+}
+
+/**
+ * @brief Bcc::create_files: creates file for saving
+ * @param config_file
+ */
+void Medibus::create_files()
+{
     unsigned long int pc_timestamp_ms =
         std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch())
@@ -83,7 +92,11 @@ void Medibus::load_protocol_config(std::string config_file)
     filename_low_limit = device->get_logger()->save_dir + (std::to_string(pc_timestamp_ms)) + "_low_limit.csv";
     filename_high_limit = device->get_logger()->save_dir + (std::to_string(pc_timestamp_ms)) + "_high_limit.csv";
     filename_alarm = device->get_logger()->save_dir + (std::to_string(pc_timestamp_ms)) + "_alarm.csv";
+    create_files_timer = pc_timestamp_ms;
+}
 
+void Medibus::create_request_timers()
+{
     alarm_low_limit_timer = new QTimer();
     QObject::connect(alarm_low_limit_timer, SIGNAL(timeout()), this, SLOT(request_alarm_low_limit()));
 
@@ -98,6 +111,21 @@ void Medibus::load_protocol_config(std::string config_file)
 
     measurement_timer = new QTimer();
     QObject::connect(measurement_timer, SIGNAL(timeout()), this, SLOT(request_measurement_cp1()));
+}
+
+void Medibus::send_request()
+{
+    request_icc();
+    measurement_timer->start(measurement_time_interval);
+    QThread::sleep(1);
+    alarm1_timer->start(alarm1_time_interval);
+    QThread::sleep(1);
+    alarm2_timer->start(alarm2_time_interval);
+    QThread::sleep(1);
+    alarm_low_limit_timer->start(alarm_low_limit_time_interval);
+    QThread::sleep(1);
+    alarm_high_limit_timer->start(alarm_high_limit_time_interval);
+    QThread::sleep(1);
 }
 
 void Medibus::from_literal_to_packet(byte b)
@@ -187,8 +215,8 @@ void Medibus::from_packet_to_structures()
             now.time_since_epoch())
             .count();
 
-    machine_datetime = pc_datetime;
-    machine_timestamp = pc_timestamp_ms;
+    parse_datetime = pc_datetime;
+    parse_timestamp = pc_timestamp_ms;
 
     for (unsigned long i = 0; i < frame_buffer.size(); i++)
     {
@@ -326,21 +354,6 @@ void Medibus::from_packet_to_structures()
     }
 }
 
-void Medibus::send_request()
-{
-    request_icc();
-    measurement_timer->start(measurement_time_interval);
-    QThread::sleep(1);
-    alarm1_timer->start(alarm1_time_interval);
-    QThread::sleep(1);
-    alarm2_timer->start(alarm2_time_interval);
-    QThread::sleep(1);
-    alarm_low_limit_timer->start(alarm_low_limit_time_interval);
-    QThread::sleep(1);
-    alarm_high_limit_timer->start(alarm_high_limit_time_interval);
-    QThread::sleep(1);
-}
-
 void Medibus::write_buffer(std::vector<unsigned char> cmd)
 {
     std::vector<byte> temptxbufferlist;
@@ -388,8 +401,8 @@ void Medibus::parse_data_text_settings(std::vector<byte> &packetbuffer)
             std::string physio_id;
             physio_id = TextMessages.find(datacode)->second;
             NumericValueDraeger NumVal;
-            NumVal.datetime = machine_datetime;
-            NumVal.timestamp_ms = machine_timestamp;
+            NumVal.datetime = parse_datetime;
+            NumVal.timestamp_ms = parse_timestamp;
             NumVal.physioid = physio_id;
             NumVal.value = DataValue;
             m_NumericValueList.push_back(NumVal);
@@ -426,8 +439,8 @@ void Medibus::parse_data_device_settings(std::vector<byte> &packetbuffer)
             std::string physio_id;
             physio_id = DeviceSettings.find(datacode)->second;
             NumericValueDraeger NumVal;
-            NumVal.datetime = machine_datetime;
-            NumVal.timestamp_ms = machine_timestamp;
+            NumVal.datetime = parse_datetime;
+            NumVal.timestamp_ms = parse_timestamp;
             NumVal.physioid = physio_id;
             NumVal.value = DataValue;
             m_NumericValueList.push_back(NumVal);
@@ -478,8 +491,8 @@ void Medibus::parse_data_response_measured(std::vector<byte> &packetbuffer, byte
 
             NumericValueDraeger NumVal;
             NumVal.type = type;
-            NumVal.datetime = machine_datetime;
-            NumVal.timestamp_ms = machine_timestamp;
+            NumVal.datetime = parse_datetime;
+            NumVal.timestamp_ms = parse_timestamp;
             NumVal.physioid = physio_id;
             NumVal.value = DataValue;
             m_NumericValueList.push_back(NumVal);
@@ -506,8 +519,8 @@ void Medibus::parse_alarm(std::vector<byte> &packetbuffer)
             std::string AlarmPhase(response.begin() + 3 + i, response.begin() + 15 + i);
 
             AlarmInfo alarm;
-            alarm.datetime = machine_datetime;
-            alarm.timestamp_ms = machine_timestamp;
+            alarm.datetime = parse_datetime;
+            alarm.timestamp_ms = parse_timestamp;
             alarm.alarmcode = alarmcode;
             alarm.alarmphrase = AlarmPhase;
             alarm.priority = std::to_string(priority);
@@ -535,10 +548,19 @@ void Medibus::command_echo_response(std::vector<byte> &cmd)
     device->write_buffer(payload_data, temptxbufferlist.size());
 }
 
-/*************************************************************/
+/******************************************************************************/
 // functions for saving data
 void Medibus::save_data()
 {
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
+    if (pc_timestamp_ms-create_files_timer_ms > 60*60*1000)
+    {
+        create_files();
+    }
+    
     save_m_AlarmInfoList_rows();
     if (m_NumericValueList.size() != 0)
     {
@@ -851,13 +873,13 @@ void Medibus::parse_realtime_data(std::vector<byte> &packetbuffer)
 
                     data_value = std::to_string(value2);
 
-                    NumericValueDraeger local_NumVal;
-                    local_NumVal.datetime = machine_datetime;
-                    local_NumVal.timestamp_ms = machine_timestamp;
-                    local_NumVal.physioid = physio_id;
-                    local_NumVal.value = data_value;
+                    NumericValueDraeger numval;
+                    numval.datetime = parse_datetime;
+                    numval.timestamp_ms = parse_timestamp;
+                    numval.physioid = physio_id;
+                    numval.value = data_value;
 
-                    m_NumericValueList.push_back(local_NumVal);
+                    m_NumericValueList.push_back(numval);
                     value_index = value_index + 1;
                 }
             }

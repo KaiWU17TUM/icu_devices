@@ -11,16 +11,18 @@ class Bcc : public Protocol
     Q_OBJECT
 public:
     Bcc(std::string config_file, Device *device);
+    void send_request();
     void from_literal_to_packet(byte b);
     void from_packet_to_structures();
-    void save_data();
-    void send_request();
-    void write_buffer(byte *payload, int length){};
+    void write_buffer(byte *payload, int length){};  // not used
     void write_buffer(std::vector<byte> &bedid, std::vector<byte> &txbuf);
+    void save_data();
 
     //    virtual ~Bcc(){};
 
 private:
+    unsigned long int create_files_timer_ms;
+    
     QTimer *request_timer;
     std::vector<byte> m_bedid;
     bool ack_flag = false;
@@ -42,8 +44,9 @@ private:
     std::string filename_AdditionalP;
 
     void load_protocol_config(std::string config_file);
-    void send_ack();
+    void create_files();
     void request_initialize_connection();
+    void send_ack();
     void save_numeric_value_list_to_row(std::string filename, std::string datatype);
     bool numeric_value_list_header_selector(std::string datatype);
     void write_numeric_value_list_header(std::string datatype, std::string filename);

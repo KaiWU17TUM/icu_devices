@@ -9,17 +9,22 @@ class Medibus : public Protocol
     Q_OBJECT
 public:
     Medibus(std::string config_file, Device *device);
+    void send_request();
     void from_literal_to_packet(byte b);
     void from_packet_to_structures();
-    void save_data();
-    void send_request();
-    void write_buffer(byte *payload, int length){};
-    void write_buffer(std::vector<byte> &bedid, std::vector<byte> &txbuf);
+    void write_buffer(byte *payload, int length){};  // not used
+    // void write_buffer(std::vector<byte> &bedid, std::vector<byte> &txbuf);
     void write_buffer(std::vector<unsigned char> cmd);
+    void save_data();
 
     ~Medibus() = default;
 
 private:
+    unsigned long int create_files_timer_ms;
+    
+    std::string parse_datetime;
+    unsigned long int parse_timestamp;
+
     bool free_flag = true;
     bool sync_data = false;
     bool new_data = false;
@@ -50,9 +55,6 @@ private:
     std::string filename_high_limit;
     std::string filename_alarm;
 
-    std::string machine_datetime;
-    unsigned long int machine_timestamp;
-
     std::vector<short> realtime_data_list;
     std::vector<unsigned char> sync_cmd;
     std::vector<unsigned char> realtime_transmission_request;
@@ -62,6 +64,8 @@ private:
     std::vector<RealtimeCfg> m_RealtimeCfgList;
 
     void load_protocol_config(std::string config_file);
+    void create_files();
+    void create_request_timers();
     void parse_data_text_settings(std::vector<byte> &packetbuffer);
     void parse_data_device_settings(std::vector<byte> &packetbuffer);
     void parse_data_response_measured(std::vector<byte> &packetbuffer, byte type);

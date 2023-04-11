@@ -2,9 +2,11 @@
 #include "device.h"
 #include <QFile>
 #include <QTextStream>
+
 Datex_ohmeda::Datex_ohmeda(std::string config_file, Device *device) : Protocol(config_file, device)
 {
     load_protocol_config(config_file);
+    create_files();
 }
 
 /**
@@ -57,7 +59,14 @@ void Datex_ohmeda::load_protocol_config(std::string config_file)
             }
         } while (!Line.isNull());
     }
+}
 
+/**
+ * @brief Bcc::create_files: creates file for saving
+ * @param config_file
+ */
+void Datex_ohmeda::create_files()
+{
     // prepare files
     unsigned long int pc_timestamp_ms =
         std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -71,127 +80,15 @@ void Datex_ohmeda::load_protocol_config(std::string config_file)
         std::string filename = std::to_string(pc_timestamp_ms) + "_" + physioId + ".csv";
         filenames_wave[physioId] = device->get_logger()->save_dir + filename;
     }
+    create_files_timer = pc_timestamp_ms;
 }
 
-void Datex_ohmeda::write_buffer(byte *payload, int length)
+void Datex_ohmeda::send_request()
 {
-    byte checksum = 0;
-    std::vector<byte> temptxbuff;
-    temptxbuff.push_back(0x7e);
-    for (int i = 0; i < length; i++)
-    {
-        switch (payload[i])
-        {
-        case (0x7e):
-            temptxbuff.push_back(0x7d);
-            temptxbuff.push_back(0x5e);
-            checksum += 0x7d;
-            checksum += 0x5e;
-            break;
-
-        case (0x7d):
-            temptxbuff.push_back(0x7d);
-            temptxbuff.push_back(0x5d);
-            checksum += 0x7d;
-            checksum += 0x5d;
-            break;
-
-        default:
-            temptxbuff.push_back(payload[i]);
-            checksum += payload[i];
-            break;
-        }
-    }
-
-    switch (checksum)
-    {
-    case 0x7e:
-        temptxbuff.push_back(checksum);
-        temptxbuff.push_back(0x5e);
-        break;
-
-    case 0x7d:
-        temptxbuff.push_back(checksum);
-        temptxbuff.push_back(0x5d);
-        break;
-
-    default:
-        temptxbuff.push_back(checksum);
-    }
-
-    temptxbuff.push_back(0x7e);
-    device->write_buffer((const char *)&temptxbuff[0], temptxbuff.size());
-}
-
-void Datex_ohmeda::from_literal_to_packet(byte b)
-{
-    // if get a byte which indicates the start of a msg
-    if (b == 0x7e && m_fstart)
-    {
-        m_fstart = false;
-        m_storestart = true;
-    }
-
-    // encounter the end
-    else if (b == 0x7e && m_fstart == false)
-    {
-        m_fstart = true;
-        m_storestart = false;
-        m_storeend = true;
-    }
-
-    if (m_storestart == true)
-    {
-        // encounter control byte
-        if (b == 0x7d)
-            m_bitschiftnext = true;
-        // normal byte
-        else
-        {
-            // the byte before is a control byte
-            if (m_bitschiftnext == true)
-            {
-                m_bitschiftnext = false;
-                b |= 0x7c;
-                b_list.push_back(b);
-            }
-            else if (b != 0x7e)
-            {
-                b_list.push_back(b);
-            }
-        }
-    }
-
-    // end of msg
-    else if (m_storeend)
-    {
-        if (b_list.size() != 0)
-        {
-            byte checksum = 0x00;
-            for (uint i = 0; i < b_list.size() - 1; i++)
-            {
-                checksum += b_list[i];
-            }
-            if (checksum == b_list[b_list.size() - 1])
-            {
-                frame_buffer.push_back(b_list);
-                std::cout << "GE Monitor Checksum correct" << std::endl;
-                b_list.clear();
-            }
-            else
-            {
-                std::cout << "GE Monitor Checksum wrong" << std::endl;
-                b_list.clear();
-            }
-            m_storeend = false;
-        }
-        else
-        {
-            m_storestart = true;
-            m_storeend = false;
-            m_fstart = false;
-        }
-    }
+    request_wave_stop(this);
+    request_phdb_transfer(phdb_data_interval, this);
+    request_wave_transfer(wave_ids, this);
+    request_alarm_transfer(this);
 }
 
 /**
@@ -345,91 +242,227 @@ void request_wave_stop(Datex_ohmeda *p)
     p->write_buffer(payload, length);
 }
 
-void Datex_ohmeda::send_request()
+void Datex_ohmeda::from_literal_to_packet(byte b)
 {
-    request_wave_stop(this);
-    request_phdb_transfer(phdb_data_interval, this);
-    request_wave_transfer(wave_ids, this);
-    request_alarm_transfer(this);
+    // if get a byte which indicates the start of a msg
+    if (b == 0x7e && m_fstart)
+    {
+        m_fstart = false;
+        m_storestart = true;
+    }
+
+    // encounter the end
+    else if (b == 0x7e && m_fstart == false)
+    {
+        m_fstart = true;
+        m_storestart = false;
+        m_storeend = true;
+    }
+
+    if (m_storestart == true)
+    {
+        // encounter control byte
+        if (b == 0x7d)
+            m_bitschiftnext = true;
+        // normal byte
+        else
+        {
+            // the byte before is a control byte
+            if (m_bitschiftnext == true)
+            {
+                m_bitschiftnext = false;
+                b |= 0x7c;
+                b_list.push_back(b);
+            }
+            else if (b != 0x7e)
+            {
+                b_list.push_back(b);
+            }
+        }
+    }
+
+    // end of msg
+    else if (m_storeend)
+    {
+        if (b_list.size() != 0)
+        {
+            byte checksum = 0x00;
+            for (uint i = 0; i < b_list.size() - 1; i++)
+            {
+                checksum += b_list[i];
+            }
+            if (checksum == b_list[b_list.size() - 1])
+            {
+                frame_buffer.push_back(b_list);
+                std::cout << "GE Monitor Checksum correct" << std::endl;
+                b_list.clear();
+            }
+            else
+            {
+                std::cout << "GE Monitor Checksum wrong" << std::endl;
+                b_list.clear();
+            }
+            m_storeend = false;
+        }
+        else
+        {
+            m_storestart = true;
+            m_storeend = false;
+            m_fstart = false;
+        }
+    }
 }
 
-/**
- * @brief get_wave_unit_shift: get unit of wave data
- * @param physioId
- * @return
- */
-double get_wave_unit_shift(std::string physioId)
+void Datex_ohmeda::from_packet_to_structures()
 {
-    double decimalshift = 1;
-    if (physioId.find("ECG") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("INVP") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("PLETH") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("CO2") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("O2") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("RESP") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("AA") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("FLOW") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("AWP") != std::string::npos)
-        return (decimalshift = 0.1);
-    else if (physioId.find("VOL") != std::string::npos)
-        return (decimalshift = -1);
-    else if (physioId.find("EEG") != std::string::npos)
-        return (decimalshift = 0.1);
-    else
-        return decimalshift;
-}
+    std::vector<struct datex::datex_record *> record_array;
+    for (uint i = 0; i < frame_buffer.size(); i++)
+    {
+        struct datex::datex_record *ptr = (struct datex::datex_record *)(&frame_buffer[i][0]);
+        record_array.push_back(ptr);
+    }
 
-/**
- * @brief validate_wave_data:  validate the number
- * @param value
- * @param decimalshift
- * @param rounddata
- * @return
- */
-std::string validate_wave_data(short value, double decimalshift, bool rounddata)
-{
-    double d_val = (double)(value)*decimalshift;
-    if (rounddata)
-        d_val = round(d_val);
-    std::string str = std::to_string(d_val);
-    if (value < DATA_INVALID_LIMIT)
-        str = '-';
-    return str;
-}
+    auto now = std::chrono::system_clock::now();
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::string pc_datetime = std::ctime(&t);
+    pc_datetime.erase(pc_datetime.end() - 1);
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            now.time_since_epoch())
+            .count();
+    unsigned long int pc_timestamp_s =
+        std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
 
-/**
- * @brief Datex_ohmeda::validate_add_data: validate data and save the data into vector
- * @param physio_id
- * @param value
- * @param decimalshift
- * @param rounddata
- */
-void Datex_ohmeda::validate_add_data(std::string physio_id, short value,
-                                     double decimalshift, bool rounddata)
-{
-    double dval = (double)(value)*decimalshift;
-    if (rounddata)
-        dval = round(dval);
-    std::string valuestr = std::to_string(dval);
-    if (value < DATA_INVALID_LIMIT)
-        valuestr = "-";
+    for (uint i = 0; i < frame_buffer.size(); i++)
+    {
+        struct datex::datex_record record = (*record_array[i]);
 
-    struct NumericValueDatex NumericValueDraeger;
-    NumericValueDraeger.datetime = machine_datetime;
-    NumericValueDraeger.timestamp_ms = machine_timestamp;
-    NumericValueDraeger.physioid = physio_id;
-    NumericValueDraeger.value = valuestr;
+        // this is a PHDB record
+        if (record.hdr.r_maintype == DRI_MT_PHDB)
+        {
+            struct datex::dri_phdb phdata_ptr;
 
-    m_NumericValueList.push_back(NumericValueDraeger);
-    m_NumValHeaders.push_back(NumericValueDraeger.physioid);
+            for (int j = 0; j < 8 && record.hdr.sr_desc[j].sr_type != 0xFF; j++)
+            {
+                int offset = (int)record.hdr.sr_desc[j].sr_offset;
+                byte buffer[270];
+                for (int n = 0; n < 270; n++)
+                {
+                    buffer[n] = record.rcrd.data[4 + offset + n];
+                }
+                switch (j)
+                {
+                case 0:
+                    (phdata_ptr.physdata.basic) = *(struct datex::basic_phdb *)buffer;
+                    break;
+                case 1:
+                    (phdata_ptr.physdata.ext1) = *(struct datex::ext1_phdb *)buffer;
+                    break;
+                case 2:
+                    (phdata_ptr.physdata.ext2) = *(struct datex::ext2_phdb *)buffer;
+                    break;
+                case 3:
+                    (phdata_ptr.physdata.ext3) = *(struct datex::ext3_phdb *)buffer;
+                    break;
+                }
+
+                record_datetime = pc_datetime;
+                record_timestamp = pc_timestamp_ms;
+                save_basic_sub_record(phdata_ptr);
+                save_ext1_and_ext2_and_ext3_record(phdata_ptr);
+            }
+        }
+
+        // this is a WAVE record
+        else if (record.hdr.r_maintype == DRI_MT_WAVE)
+        {
+            for (int j = 0; j < 8 && record.hdr.sr_desc[j].sr_type != 0xFF; j++)
+            {
+                int offset = (int)record.hdr.sr_desc[j].sr_offset;
+                int srsamplelenbytes[2];
+                srsamplelenbytes[0] = record.rcrd.data[offset];
+                srsamplelenbytes[1] = record.rcrd.data[offset + 1];
+
+                int sub_header_len = 6;
+                int subrecordlen = 256 * (int)srsamplelenbytes[1] + (int)srsamplelenbytes[0];
+                int buflen = 2 * subrecordlen; //(nextoffset - offset - 6);
+                byte *buffer = (byte *)malloc(sizeof(byte) * buflen);
+                for (int j = 0; j < buflen; j++)
+                {
+                    buffer[j] = record.rcrd.data[sub_header_len + j + offset];
+                }
+
+                std::vector<short> value_list;
+                std::vector<unsigned long int> timestamp_ms_list;
+                int samples = datex::WaveIdFreqs.find(record.hdr.sr_desc[j].sr_type)->second;
+                for (int n = 0; n < buflen; n += 2)
+                {
+                    value_list.push_back((buffer[n + 1]) * 256 + (buffer[n]));
+                    timestamp_ms_list.push_back(pc_timestamp_s * 1000 - 1000 * ((buflen - n) / 2 - 1) / samples);
+                }
+
+                WaveValueDatex wave_val;
+                wave_val.datetime = pc_datetime;
+                wave_val.timestamp_ms = pc_timestamp_ms;
+                wave_val.timestamp_ms_list = timestamp_ms_list;
+                wave_val.physioid = datex::WaveIdLabels.find(record.hdr.sr_desc[j].sr_type)->second;
+                wave_val.unitshift = get_wave_unit_shift(wave_val.physioid);
+                wave_val.value_list = value_list;
+                m_WaveValueList.push_back(wave_val);
+            }
+        }
+
+        else if (record.hdr.r_maintype == DRI_MT_ALARM)
+        {
+            for (int j = 0; j < 8 && record.hdr.sr_desc[j].sr_type != 0xFF; j++)
+            {
+                int offset = (int)record.hdr.sr_desc[j].sr_offset;
+                byte buffer[270];
+                for (int n = 0; n < 270; n++)
+                {
+                    buffer[n] = record.rcrd.data[offset + n];
+                }
+                struct datex::dri_al_msg dri_al_msg_ptr;
+                dri_al_msg_ptr = *(struct datex::dri_al_msg *)buffer;
+                AlarmDatex alarm[5];
+                for (int n = 0; n < 5; n++)
+                {
+                    alarm[n].datetime = pc_datetime;
+                    alarm[n].timestamp_ms = pc_timestamp_ms;
+                    alarm[n].text = std::string(dri_al_msg_ptr.al_disp[n].text);
+                    for (uint m = 0; m < alarm[n].text.length(); m++)
+                    {
+                        if (alarm[n].text[m] == '\n')
+                        {
+                            alarm[n].text[m] = ' ';
+                            break;
+                        }
+                    }
+                    switch (dri_al_msg_ptr.al_disp[n].color)
+                    {
+                    case 0:
+                        alarm[n].color = "DRI_PR0";
+                        break;
+                    case 1:
+                        alarm[n].color = "DRI_PR1";
+                        break;
+                    case 2:
+                        alarm[n].color = "DRI_PR2";
+                        break;
+                    case 3:
+                        alarm[n].color = "DRI_PR3";
+                        break;
+                    }
+                    if (dri_al_msg_ptr.al_disp[n].text_changed == 1)
+                    {
+                        m_AlarmList.push_back(alarm[n]);
+                    }
+                }
+            }
+        }
+    }
 }
 
 void Datex_ohmeda::save_basic_sub_record(datex::dri_phdb driSR)
@@ -588,156 +621,115 @@ void Datex_ohmeda::save_ext1_and_ext2_and_ext3_record(datex::dri_phdb driSR)
     validate_add_data("BIS_SQI", driSR.physdata.ext2.eeg_bis.sqi_val, 1, true);
 }
 
-void Datex_ohmeda::from_packet_to_structures()
+/**
+ * @brief Datex_ohmeda::validate_add_data: validate data and save the data into vector
+ * @param physio_id
+ * @param value
+ * @param decimalshift
+ * @param rounddata
+ */
+void Datex_ohmeda::validate_add_data(std::string physio_id, short value,
+                                     double decimalshift, bool rounddata)
 {
-    std::vector<struct datex::datex_record *> record_array;
-    for (uint i = 0; i < frame_buffer.size(); i++)
+    double dval = (double)(value)*decimalshift;
+    if (rounddata)
+        dval = round(dval);
+    std::string valuestr = std::to_string(dval);
+    if (value < DATA_INVALID_LIMIT)
+        valuestr = "-";
+
+    struct NumericValueDatex numval;
+    numval.datetime = record_datetime;
+    numval.timestamp_ms = record_timestamp;
+    numval.physioid = physio_id;
+    numval.value = valuestr;
+
+    m_NumericValueList.push_back(numval);
+    m_NumValHeaders.push_back(numval.physioid);
+}
+
+/**
+ * @brief get_wave_unit_shift: get unit of wave data
+ * @param physioId
+ * @return
+ */
+double get_wave_unit_shift(std::string physioId)
+{
+    double decimalshift = 1;
+    if (physioId.find("ECG") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("INVP") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("PLETH") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("CO2") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("O2") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("RESP") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("AA") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("FLOW") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("AWP") != std::string::npos)
+        return (decimalshift = 0.1);
+    else if (physioId.find("VOL") != std::string::npos)
+        return (decimalshift = -1);
+    else if (physioId.find("EEG") != std::string::npos)
+        return (decimalshift = 0.1);
+    else
+        return decimalshift;
+}
+
+void Datex_ohmeda::write_buffer(byte *payload, int length)
+{
+    byte checksum = 0;
+    std::vector<byte> temptxbuff;
+    temptxbuff.push_back(0x7e);
+    for (int i = 0; i < length; i++)
     {
-        struct datex::datex_record *ptr = (struct datex::datex_record *)(&frame_buffer[i][0]);
-        record_array.push_back(ptr);
+        switch (payload[i])
+        {
+        case (0x7e):
+            temptxbuff.push_back(0x7d);
+            temptxbuff.push_back(0x5e);
+            checksum += 0x7d;
+            checksum += 0x5e;
+            break;
+
+        case (0x7d):
+            temptxbuff.push_back(0x7d);
+            temptxbuff.push_back(0x5d);
+            checksum += 0x7d;
+            checksum += 0x5d;
+            break;
+
+        default:
+            temptxbuff.push_back(payload[i]);
+            checksum += payload[i];
+            break;
+        }
     }
 
-    auto now = std::chrono::system_clock::now();
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::string pc_datetime = std::ctime(&t);
-    pc_datetime.erase(pc_datetime.end() - 1);
-    unsigned long int pc_timestamp_ms =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            now.time_since_epoch())
-            .count();
-    unsigned long int pc_timestamp_s =
-        std::chrono::duration_cast<std::chrono::seconds>(
-            std::chrono::system_clock::now().time_since_epoch())
-            .count();
-
-    for (uint i = 0; i < frame_buffer.size(); i++)
+    switch (checksum)
     {
-        struct datex::datex_record record = (*record_array[i]);
+    case 0x7e:
+        temptxbuff.push_back(checksum);
+        temptxbuff.push_back(0x5e);
+        break;
 
-        // this is a PHDB record
-        if (record.hdr.r_maintype == DRI_MT_PHDB)
-        {
-            struct datex::dri_phdb phdata_ptr;
+    case 0x7d:
+        temptxbuff.push_back(checksum);
+        temptxbuff.push_back(0x5d);
+        break;
 
-            for (int j = 0; j < 8 && record.hdr.sr_desc[j].sr_type != 0xFF; j++)
-            {
-                int offset = (int)record.hdr.sr_desc[j].sr_offset;
-                byte buffer[270];
-                for (int n = 0; n < 270; n++)
-                {
-                    buffer[n] = record.rcrd.data[4 + offset + n];
-                }
-                switch (j)
-                {
-                case 0:
-                    (phdata_ptr.physdata.basic) = *(struct datex::basic_phdb *)buffer;
-                    break;
-                case 1:
-                    (phdata_ptr.physdata.ext1) = *(struct datex::ext1_phdb *)buffer;
-                    break;
-                case 2:
-                    (phdata_ptr.physdata.ext2) = *(struct datex::ext2_phdb *)buffer;
-                    break;
-                case 3:
-                    (phdata_ptr.physdata.ext3) = *(struct datex::ext3_phdb *)buffer;
-                    break;
-                }
-
-                machine_datetime = pc_datetime;
-                machine_timestamp = pc_timestamp_ms;
-                save_basic_sub_record(phdata_ptr);
-                save_ext1_and_ext2_and_ext3_record(phdata_ptr);
-            }
-        }
-
-        // this is a WAVE record
-        else if (record.hdr.r_maintype == DRI_MT_WAVE)
-        {
-            for (int j = 0; j < 8 && record.hdr.sr_desc[j].sr_type != 0xFF; j++)
-            {
-                int offset = (int)record.hdr.sr_desc[j].sr_offset;
-                int srsamplelenbytes[2];
-                srsamplelenbytes[0] = record.rcrd.data[offset];
-                srsamplelenbytes[1] = record.rcrd.data[offset + 1];
-
-                int sub_header_len = 6;
-                int subrecordlen = 256 * (int)srsamplelenbytes[1] + (int)srsamplelenbytes[0];
-                int buflen = 2 * subrecordlen; //(nextoffset - offset - 6);
-                byte *buffer = (byte *)malloc(sizeof(byte) * buflen);
-                for (int j = 0; j < buflen; j++)
-                {
-                    buffer[j] = record.rcrd.data[sub_header_len + j + offset];
-                }
-
-                std::vector<short> value_list;
-                std::vector<unsigned long int> timestamp_ms_list;
-                int samples = datex::WaveIdFreqs.find(record.hdr.sr_desc[j].sr_type)->second;
-                for (int n = 0; n < buflen; n += 2)
-                {
-                    value_list.push_back((buffer[n + 1]) * 256 + (buffer[n]));
-                    timestamp_ms_list.push_back(pc_timestamp_s * 1000 - 1000 * ((buflen - n) / 2 - 1) / samples);
-                }
-
-                WaveValueDatex wave_val;
-                wave_val.datetime = pc_datetime;
-                wave_val.timestamp_ms = pc_timestamp_ms;
-                wave_val.timestamp_ms_list = timestamp_ms_list;
-                wave_val.physioid = datex::WaveIdLabels.find(record.hdr.sr_desc[j].sr_type)->second;
-                wave_val.unitshift = get_wave_unit_shift(wave_val.physioid);
-                wave_val.value_list = value_list;
-                m_WaveValueList.push_back(wave_val);
-            }
-        }
-
-        else if (record.hdr.r_maintype == DRI_MT_ALARM)
-        {
-            for (int j = 0; j < 8 && record.hdr.sr_desc[j].sr_type != 0xFF; j++)
-            {
-                int offset = (int)record.hdr.sr_desc[j].sr_offset;
-                byte buffer[270];
-                for (int n = 0; n < 270; n++)
-                {
-                    buffer[n] = record.rcrd.data[offset + n];
-                }
-                struct datex::dri_al_msg dri_al_msg_ptr;
-                dri_al_msg_ptr = *(struct datex::dri_al_msg *)buffer;
-                AlarmDatex alarm[5];
-                for (int n = 0; n < 5; n++)
-                {
-                    alarm[n].datetime = pc_datetime;
-                    alarm[n].timestamp_ms = pc_timestamp_ms;
-                    alarm[n].text = std::string(dri_al_msg_ptr.al_disp[n].text);
-                    for (uint m = 0; m < alarm[n].text.length(); m++)
-                    {
-                        if (alarm[n].text[m] == '\n')
-                        {
-                            alarm[n].text[m] = ' ';
-                            break;
-                        }
-                    }
-                    switch (dri_al_msg_ptr.al_disp[n].color)
-                    {
-                    case 0:
-                        alarm[n].color = "DRI_PR0";
-                        break;
-                    case 1:
-                        alarm[n].color = "DRI_PR1";
-                        break;
-                    case 2:
-                        alarm[n].color = "DRI_PR2";
-                        break;
-                    case 3:
-                        alarm[n].color = "DRI_PR3";
-                        break;
-                    }
-                    if (dri_al_msg_ptr.al_disp[n].text_changed == 1)
-                    {
-                        m_AlarmList.push_back(alarm[n]);
-                    }
-                }
-            }
-        }
+    default:
+        temptxbuff.push_back(checksum);
     }
+
+    temptxbuff.push_back(0x7e);
+    device->write_buffer((const char *)&temptxbuff[0], temptxbuff.size());
 }
 
 /*************************************************************/
@@ -745,6 +737,15 @@ void Datex_ohmeda::from_packet_to_structures()
 
 void Datex_ohmeda::save_data()
 {
+    unsigned long int pc_timestamp_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
+    if (pc_timestamp_ms-create_files_timer_ms > 60*60*1000)
+    {
+        create_files();
+    }
+
     save_numeric_to_csv(); // phdb
     save_alarm_to_csv();
     save_wave_to_csv();
@@ -845,6 +846,24 @@ void Datex_ohmeda::save_wave_to_csv()
     }
 }
 
+/**
+ * @brief validate_wave_data:  validate the number
+ * @param value
+ * @param decimalshift
+ * @param rounddata
+ * @return
+ */
+std::string validate_wave_data(short value, double decimalshift, bool rounddata)
+{
+    double d_val = (double)(value)*decimalshift;
+    if (rounddata)
+        d_val = round(d_val);
+    std::string str = std::to_string(d_val);
+    if (value < DATA_INVALID_LIMIT)
+        str = '-';
+    return str;
+}
+
 void Datex_ohmeda::save_numeric_to_csv()
 {
     if (m_NumericValueList.size() == 0)
@@ -870,6 +889,7 @@ void Datex_ohmeda::save_numeric_to_csv()
 
     for (uint i = 0; i < m_NumericValueList.size(); i++)
     {
+        // N Hz data (we do not have ns resolution) + data saving delay.
         if (m_NumericValueList[i].timestamp_ms == m_NumericValueList[0].timestamp_ms &&
             pc_timestamp_ms > (m_NumericValueList[i].timestamp_ms + timelapse))
         {

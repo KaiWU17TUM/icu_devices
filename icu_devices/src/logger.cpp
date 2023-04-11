@@ -1,11 +1,20 @@
 #include "logger.h"
 #include <QDir>
 
-Logger::Logger(const std::string config_file, std::string filename)
+Logger::Logger(const std::string config_file, std::string base_folder)
 {
     logger_timer = new QTimer();
     load_logger_settings(config_file);
-    save_dir = filename + "/" + save_dir + "/";
+    create_logger_directory();
+    base_save_dir = base_folder;
+}
+
+/**
+ * @brief Logger::create_logger_directory: create folder for logging.
+ */
+void Logger::create_logger_directory()
+{
+    save_dir = base_save_dir + "/" + save_dir + "/";
     QDir dir(QString::fromStdString(save_dir));
     if (!dir.exists())
     {
