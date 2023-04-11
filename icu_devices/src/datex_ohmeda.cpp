@@ -313,6 +313,40 @@ void Datex_ohmeda::from_literal_to_packet(byte b)
     }
 }
 
+/**
+ * @brief get_wave_unit_shift: get unit of wave data
+ * @param physioId
+ * @return
+ */
+double get_wave_unit_shift(std::string physioId)
+{
+    double decimalshift = 1;
+    if (physioId.find("ECG") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("INVP") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("PLETH") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("CO2") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("O2") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("RESP") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("AA") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("FLOW") != std::string::npos)
+        return (decimalshift = 0.01);
+    else if (physioId.find("AWP") != std::string::npos)
+        return (decimalshift = 0.1);
+    else if (physioId.find("VOL") != std::string::npos)
+        return (decimalshift = -1);
+    else if (physioId.find("EEG") != std::string::npos)
+        return (decimalshift = 0.1);
+    else
+        return decimalshift;
+}
+
 void Datex_ohmeda::from_packet_to_structures()
 {
     std::vector<struct datex::datex_record *> record_array;
@@ -648,40 +682,6 @@ void Datex_ohmeda::validate_add_data(std::string physio_id, short value,
     m_NumValHeaders.push_back(numval.physioid);
 }
 
-/**
- * @brief get_wave_unit_shift: get unit of wave data
- * @param physioId
- * @return
- */
-double get_wave_unit_shift(std::string physioId)
-{
-    double decimalshift = 1;
-    if (physioId.find("ECG") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("INVP") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("PLETH") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("CO2") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("O2") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("RESP") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("AA") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("FLOW") != std::string::npos)
-        return (decimalshift = 0.01);
-    else if (physioId.find("AWP") != std::string::npos)
-        return (decimalshift = 0.1);
-    else if (physioId.find("VOL") != std::string::npos)
-        return (decimalshift = -1);
-    else if (physioId.find("EEG") != std::string::npos)
-        return (decimalshift = 0.1);
-    else
-        return decimalshift;
-}
-
 void Datex_ohmeda::write_buffer(byte *payload, int length)
 {
     byte checksum = 0;
@@ -789,6 +789,24 @@ void Datex_ohmeda::save_alarm_to_csv()
     }
 }
 
+/**
+ * @brief validate_wave_data:  validate the number
+ * @param value
+ * @param decimalshift
+ * @param rounddata
+ * @return
+ */
+std::string validate_wave_data(short value, double decimalshift, bool rounddata)
+{
+    double d_val = (double)(value)*decimalshift;
+    if (rounddata)
+        d_val = round(d_val);
+    std::string str = std::to_string(d_val);
+    if (value < DATA_INVALID_LIMIT)
+        str = '-';
+    return str;
+}
+
 void Datex_ohmeda::save_wave_to_csv()
 {
     std::time_t timelapse = device->get_logger()->time_delay;
@@ -844,24 +862,6 @@ void Datex_ohmeda::save_wave_to_csv()
     {
         m_WaveValueList.erase(m_WaveValueList.begin(), m_WaveValueList.begin() + empty_list_count);
     }
-}
-
-/**
- * @brief validate_wave_data:  validate the number
- * @param value
- * @param decimalshift
- * @param rounddata
- * @return
- */
-std::string validate_wave_data(short value, double decimalshift, bool rounddata)
-{
-    double d_val = (double)(value)*decimalshift;
-    if (rounddata)
-        d_val = round(d_val);
-    std::string str = std::to_string(d_val);
-    if (value < DATA_INVALID_LIMIT)
-        str = '-';
-    return str;
 }
 
 void Datex_ohmeda::save_numeric_to_csv()
