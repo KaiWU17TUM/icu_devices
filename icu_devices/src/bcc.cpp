@@ -100,7 +100,7 @@ void Bcc::create_files()
     filename_InfusionPumpP = device->get_logger()->save_dir + std::to_string(pc_timestamp_ms) + "_InfusionPumpParameters.csv";
     filename_UndefinedP = device->get_logger()->save_dir + std::to_string(pc_timestamp_ms) + "_UndefinedParameters.csv";
     filename_AdditionalP = device->get_logger()->save_dir + std::to_string(pc_timestamp_ms) + "_AdditionalParameters.csv";
-    create_files_timer = pc_timestamp_ms;
+    create_files_timer_ms = pc_timestamp_ms;
 }
 
 void Bcc::send_request()

@@ -80,15 +80,7 @@ void Datex_ohmeda::create_files()
         std::string filename = std::to_string(pc_timestamp_ms) + "_" + physioId + ".csv";
         filenames_wave[physioId] = device->get_logger()->save_dir + filename;
     }
-    create_files_timer = pc_timestamp_ms;
-}
-
-void Datex_ohmeda::send_request()
-{
-    request_wave_stop(this);
-    request_phdb_transfer(phdb_data_interval, this);
-    request_wave_transfer(wave_ids, this);
-    request_alarm_transfer(this);
+    create_files_timer_ms = pc_timestamp_ms;
 }
 
 /**
@@ -240,6 +232,14 @@ void request_wave_stop(Datex_ohmeda *p)
     int length = sizeof(requestPkt);
     // return payload
     p->write_buffer(payload, length);
+}
+
+void Datex_ohmeda::send_request()
+{
+    request_wave_stop(this);
+    request_phdb_transfer(phdb_data_interval, this);
+    request_wave_transfer(wave_ids, this);
+    request_alarm_transfer(this);
 }
 
 void Datex_ohmeda::from_literal_to_packet(byte b)

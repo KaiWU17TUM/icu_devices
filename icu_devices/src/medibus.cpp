@@ -92,7 +92,7 @@ void Medibus::create_files()
     filename_low_limit = device->get_logger()->save_dir + (std::to_string(pc_timestamp_ms)) + "_low_limit.csv";
     filename_high_limit = device->get_logger()->save_dir + (std::to_string(pc_timestamp_ms)) + "_high_limit.csv";
     filename_alarm = device->get_logger()->save_dir + (std::to_string(pc_timestamp_ms)) + "_alarm.csv";
-    create_files_timer = pc_timestamp_ms;
+    create_files_timer_ms = pc_timestamp_ms;
 }
 
 void Medibus::create_request_timers()
