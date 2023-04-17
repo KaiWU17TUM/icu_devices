@@ -18,6 +18,6 @@ mkdir -p ${BUILDFOLDER}
 
 cd ${BUILDFOLDER}
 
-qmake "CONFIG+=${1}" ${FILEPATH}/icu_devices.pro
+qmake "CONFIG+=${1}" ../../icu_devices.pro
 
 make -j$(($(nproc)-1))
