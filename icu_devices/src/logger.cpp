@@ -4,9 +4,10 @@
 Logger::Logger(const std::string config_file, std::string base_folder)
 {
     logger_timer = new QTimer();
+    base_save_dir = base_folder;
     load_logger_settings(config_file);
     create_logger_directory();
-    base_save_dir = base_folder;
+
 }
 
 /**

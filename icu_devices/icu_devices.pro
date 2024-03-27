@@ -33,3 +33,11 @@ HEADERS += \
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+DISTFILES += \
+    cfg/bb_config.txt \
+    cfg/ev_config.txt \
+    cfg/ge_config.txt \
+    cfg/ge_config1.txt \
+    cfg/ge_config2.txt \
+    cfg/general_config.txt

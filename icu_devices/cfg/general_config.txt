@@ -1,6 +1,8 @@
 ################################################
 # Config patient information
-room = 001
-bed = 002
-path = /mnt/DHM-ICUSUITE-DS1/data/icu_devices/221102180001/
+room=011
+bed=001
+#path = /home/kai/workspace/check-version-icu-device/icu-suite_check/repositories/icu_devices/icu_devices/test/
+#path = /home/dhm/icu-suite/data/
+path=/mnt/DHM-ICUSUITE-DS1/data/icu_devices/20240325/
 

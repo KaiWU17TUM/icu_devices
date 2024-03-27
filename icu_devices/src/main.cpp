@@ -3,22 +3,24 @@
 #include <QDebug>
 #include <vector>
 #include <ctime>
+#include <filesystem>
 
 int main(int argc, char *argv[])
 {
 
-    if(argc<2)
-    {
-        printf("Please enter the path to the config folder...\n");
-        return 0;
-    }
-    if(argc>2)
-    {
-        printf("Too much arguments. Please enter only the path to the config folder...\n");
-        return 0;
-    }
+//    if(argc<2)
+//    {
+//        printf("Please enter the path to the config folder...\n");
+//        return 0;
+//    }
+//    if(argc>2)
+//    {
+//        printf("Too much arguments. Please enter only the path to the config folder...\n");
+//        return 0;
+//    }
 
     std::string base_config_path = argv[1];
+//    std::string base_config_path = "/home/kai/workspace/check-version-icu-device/icu-suite_check/repositories/icu_devices/icu_devices/cfg";
 
     QCoreApplication a(argc, argv);
     // B,C,D => USB1,2,3
@@ -30,13 +32,13 @@ int main(int argc, char *argv[])
     Device my_monitor("ge_monitor_b650", ge_config_file, general_config_file, "datex_ohmeda");
     my_monitor.start();
 
-    std::string bb_config_file = base_config_path + "/bb_config.txt";
-    Device my_perfusor("bbraun", bb_config_file, general_config_file, "bcc");
-    my_perfusor.start();
+//    std::string bb_config_file = base_config_path + "/bb_config.txt";
+//    Device my_perfusor("bbraun", bb_config_file, general_config_file, "bcc");
+//    my_perfusor.start();
 
-    std::string ev_config_file = base_config_path + "/ev_config.txt";
-    Device my_evita4_vent("evta4", ev_config_file, general_config_file, "medibus");
-    my_evita4_vent.start();
+//    std::string ev_config_file = base_config_path + "/ev_config.txt";
+//    Device my_evita4_vent("evta4", ev_config_file, general_config_file, "medibus");
+//    my_evita4_vent.start();
 
     /****************************************************************************************************************************/
     // Codes below are for debugging purpose, please ignore them

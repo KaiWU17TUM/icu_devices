@@ -13,12 +13,14 @@ void MySerialPort::open_serial_port()
 {
     if (serial->open(QIODevice::ReadWrite))
     {
-        std::cout << "open port success\n"
+        std::cout << "open port success: "
+                  << serial->portName().toStdString()
                   << std::endl;
     }
     else
     {
-        std::cout << "open port failed\n"
+        std::cout << "open port failed: "
+                  << serial->portName().toStdString()
                   << std::endl;
     }
 }

@@ -2,7 +2,7 @@
 
 Device::Device(std::string device_name, std::string config_file, std::string general_config, std::string protocol)
 {
-    device_name = device_name;
+    this->device_name = device_name;
     std::string foldername = get_measurement_folder_name(general_config);
 
     // set up serial port

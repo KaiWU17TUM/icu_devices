@@ -61,6 +61,7 @@ void Datex_ohmeda::load_protocol_config(std::string config_file)
     }
 }
 
+
 /**
  * @brief Bcc::create_files: creates file for saving
  * @param config_file

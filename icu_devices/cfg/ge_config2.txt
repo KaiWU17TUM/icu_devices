@@ -1,6 +1,6 @@
 ################################################
 # Config serial port
-usb_port = /dev/ttyUSB0
+usb_port = /dev/ttyUSB4
 baud_rate = 19200
 data_bits = data8
 parity = even_parity
@@ -26,7 +26,7 @@ folder = ge_monitor_b650
 phdb_time_interval = 5
 
 # The target wave id, the sum of wave_id frequency should be smaller than 600/s
-wave_id = [1, 8]
+wave_id = [1, 4, 8]
 
 # Here is the wave_id mapping relationship, the frequency is following
 #0, "DRI_WF_CMD", unknown
